@@ -29,7 +29,10 @@ SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 
 # List of hosts/domains your site is allowed to serve.
 # Example: "example.com,www.example.com"
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = [
+    "wonderful-generosity-production.up.railway.app",
+    ".railway.app"
+]
 
 # Ensure cookies are only sent over HTTPS in production
 SESSION_COOKIE_SECURE = True
