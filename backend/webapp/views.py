@@ -61,6 +61,7 @@ def is_admin(user):
         user.is_authenticated
         and (
             user.is_superuser
+            or user.is_staff
             or user.user_type == 'Admin'
         )
     )
