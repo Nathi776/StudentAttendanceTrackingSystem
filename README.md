@@ -71,6 +71,7 @@ Face recognition note for Railway:
 
 - The backend includes `backend/nixpacks.toml` so Railway installs native Linux libraries required by `face_recognition`/`dlib`.
 - After pulling this change, trigger a full Railway redeploy so the image is rebuilt with these system packages.
+- If Railway still reports missing system libraries (for example `libX11.so.6`), use the included `backend/Dockerfile` as the backend builder and redeploy.
 
 ### Vercel frontend variables
 
