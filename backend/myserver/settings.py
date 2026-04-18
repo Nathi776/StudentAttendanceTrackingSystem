@@ -14,17 +14,38 @@ from pathlib import Path
 from urllib.parse import urlparse
 import os
 
-from dotenv import load_dotenv
 
-load_dotenv(os.path.join(Path(__file__).resolve().parent.parent, '.env'))
+def _load_env_file(path):
+    if not path.exists():
+        return
+
+    for raw_line in path.read_text(encoding='utf-8').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_env_file(Path(__file__).resolve().parent.parent / '.env')
+
+
+def _get_list_env(name, default=''):
+    """Read comma-separated env vars into a cleaned list."""
+    raw_value = os.getenv(name, default)
+    return [item.strip() for item in raw_value.split(',') if item.strip()]
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-duqoi6mg5@fypw3@hy9%0=50sao8t$eti&_mtqt^(o%tf1yq(^')
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
-ALLOWED_HOSTS = [
-    "wonderful-generosity-production.up.railway.app",
-    ".railway.app"
-]
+ALLOWED_HOSTS = _get_list_env(
+    'DJANGO_ALLOWED_HOSTS',
+    'localhost,127.0.0.1,.railway.app'
+)
 
 INSTALLED_APPS = [
     'corsheaders',
@@ -100,14 +121,16 @@ else:
         }
     }
 
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+CORS_ALLOWED_ORIGINS = _get_list_env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:3000').split(',')
+CSRF_TRUSTED_ORIGINS = _get_list_env('CSRF_TRUSTED_ORIGINS', 'http://localhost:3000')
 
-SESSION_COOKIE_SAMESITE = None
-CSRF_COOKIE_SAMESITE = None
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'None' if not DEBUG else 'Lax')
+CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'None' if not DEBUG else 'Lax')
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True' if not DEBUG else 'False').lower() in ('1', 'true', 'yes')
+CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True' if not DEBUG else 'False').lower() in ('1', 'true', 'yes')
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = os.getenv('DJANGO_SECURE_SSL_REDIRECT', 'True' if not DEBUG else 'False').lower() in ('1', 'true', 'yes')
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -129,18 +152,18 @@ TIME_ZONE = 'Africa/Johannesburg'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 
 AUTH_USER_MODEL = 'webapp.User'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'nyikogiven74@gmail.com'
-EMAIL_HOST_PASSWORD = 'rzcksgqksodfuqwl'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('1', 'true', 'yes')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

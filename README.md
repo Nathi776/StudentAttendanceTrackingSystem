@@ -43,6 +43,47 @@ The frontend will run on `http://localhost:3000` and will proxy API calls to the
 
 ---
 
+## Deployment setup
+
+For your current hosting layout, the backend should run on Railway, the database should stay on Render Postgres, and the frontend should run on Vercel.
+
+### Railway backend variables
+
+Set these in the Railway service that runs Django:
+
+- `DJANGO_SECRET_KEY`: a strong random secret
+- `DJANGO_DEBUG=False`
+- `DJANGO_SETTINGS_MODULE=myserver.settings_production` if you want Railway to use the production settings file
+- `DJANGO_ALLOWED_HOSTS=wonderful-generosity-production.up.railway.app,.railway.app`
+- `DATABASE_URL=<your Render Postgres connection string>`
+- `CORS_ALLOWED_ORIGINS=https://student-attendance-tracking-system-zeta.vercel.app,http://localhost:3000`
+- `CSRF_TRUSTED_ORIGINS=https://student-attendance-tracking-system-zeta.vercel.app,http://localhost:3000`
+
+Optional but recommended:
+
+- `EMAIL_HOST`
+- `EMAIL_PORT`
+- `EMAIL_USE_TLS`
+- `EMAIL_HOST_USER`
+- `EMAIL_HOST_PASSWORD`
+
+### Vercel frontend variables
+
+Set this in the Vercel project that runs React:
+
+- `REACT_APP_API_BASE=https://wonderful-generosity-production.up.railway.app`
+
+### What I still need from you
+
+If you want me to verify the final values precisely, send:
+
+- the public Railway backend URL
+- the public Vercel frontend URL
+- whether Railway is using `myserver.settings` or `myserver.settings_production`
+- whether you want email delivery configured now, and if so the SMTP values
+
+---
+
 ## Existing Features
 
 The existing AI face recognition attendance flow is still supported via the backend API.
