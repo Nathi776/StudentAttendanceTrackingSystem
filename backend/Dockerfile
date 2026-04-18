@@ -28,4 +28,4 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . .
 
-CMD ["sh", "-c", "gunicorn myserver.wsgi:application --bind 0.0.0.0:${PORT}"]
+CMD ["gunicorn", "myserver.wsgi:application", "--bind", "0.0.0.0:8080"]
