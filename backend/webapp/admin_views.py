@@ -41,15 +41,12 @@ class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
 
     def test_func(self):
         user = self.request.user
-        # Allow access for superusers (regardless of user_type) and for staff users explicitly marked as Admin.
+        # Allow access for superusers and for any authenticated user explicitly marked as Admin.
         return bool(
             user.is_authenticated
             and (
                 user.is_superuser
-                or (
-                    user.is_staff
-                    and getattr(user, 'user_type', None) == 'Admin'
-                )
+                or getattr(user, 'user_type', None) == 'Admin'
             )
         )
 
