@@ -67,6 +67,11 @@ Optional but recommended:
 - `EMAIL_HOST_USER`
 - `EMAIL_HOST_PASSWORD`
 
+Face recognition note for Railway:
+
+- The backend includes `backend/nixpacks.toml` so Railway installs native Linux libraries required by `face_recognition`/`dlib`.
+- After pulling this change, trigger a full Railway redeploy so the image is rebuilt with these system packages.
+
 ### Vercel frontend variables
 
 Set this in the Vercel project that runs React:

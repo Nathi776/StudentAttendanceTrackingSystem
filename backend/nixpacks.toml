@@ -1,0 +1,23 @@
+[phases.setup]
+nixPkgs = ["python311", "gcc", "cmake", "pkg-config"]
+aptPkgs = [
+  "libx11-6",
+  "libglib2.0-0",
+  "libsm6",
+  "libxext6",
+  "libxrender1",
+  "libgomp1",
+  "libopenblas-dev",
+  "liblapack-dev",
+  "libjpeg-dev",
+  "zlib1g-dev"
+]
+
+[phases.install]
+cmds = [
+  "python -m pip install --upgrade pip",
+  "pip install -r requirements.txt"
+]
+
+[start]
+cmd = "gunicorn myserver.wsgi:application --bind 0.0.0.0:$PORT"
