@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { login } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
-const BACKEND_BASE = (process.env.REACT_APP_API_BASE || 'http://localhost:5000').replace(/\/$/, '');
+const BACKEND_BASE = (process.env.REACT_APP_API_BASE || 'https://wonderful-generosity-production.up.railway.app').replace(/\/$/, '');
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');

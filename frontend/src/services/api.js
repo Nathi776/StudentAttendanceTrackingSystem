@@ -1,4 +1,5 @@
-const API_BASE = process.env.REACT_APP_API_BASE || '';
+const DEFAULT_API_BASE = 'https://wonderful-generosity-production.up.railway.app';
+const API_BASE = (process.env.REACT_APP_API_BASE || DEFAULT_API_BASE).replace(/\/$/, '');
 
 function buildUrl(path) {
   // If path already includes protocol, leave it alone.
@@ -24,13 +25,22 @@ async function fetchJson(path, options = {}) {
 
   const response = await fetch(url, finalOptions);
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { message: text };
+    }
+  }
 
   if (!response.ok) {
-    const errorMessage = data?.message || response.statusText || 'Unknown error';
+    const errorMessage = data?.message || response.statusText || `Request failed (${response.status})`;
     const error = new Error(errorMessage);
     error.status = response.status;
     error.details = data;
+    error.url = url;
     throw error;
   }
 
