@@ -19,7 +19,6 @@ from django.contrib.auth import authenticate, login, logout
 
 
 from .models import User, Student, Lecturer, Course, Enrollment, ClassSession, Attendance, FaceEncoding
-from .face_engine import encode_single_face, match_face
 
 from .forms import (
     CustomUserCreationForm, StudentForm, LecturerForm, CourseForm,
@@ -771,6 +770,14 @@ def enroll_face_api(request):
         return JsonResponse({'error': 'Invalid request method.'}, status=405)
 
     try:
+        from .face_engine import encode_single_face
+    except Exception:
+        return JsonResponse(
+            {'error': 'Face recognition service is unavailable on this server.'},
+            status=503,
+        )
+
+    try:
         data = json.loads(request.body.decode('utf-8'))
         image_data_b64 = data.get('image_data')
 
@@ -851,6 +858,14 @@ def mark_attendance_api(request):
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+    try:
+        from .face_engine import encode_single_face, match_face
+    except Exception:
+        return JsonResponse(
+            {'error': 'Face recognition service is unavailable on this server.'},
+            status=503,
+        )
 
     try:
         data = json.loads(request.body.decode('utf-8'))
