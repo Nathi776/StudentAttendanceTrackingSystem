@@ -108,6 +108,8 @@ class AdminModelListView(AdminRequiredMixin, ListView):
             for field in self.search_fields:
                 query |= Q(**{f"{field}__icontains": q})
             qs = qs.filter(query)
+        if not qs.ordered:
+            qs = qs.order_by(self.model._meta.pk.name)
         return qs
 
     def get_context_data(self, **kwargs):
