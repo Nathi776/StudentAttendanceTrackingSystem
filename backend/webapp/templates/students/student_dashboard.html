@@ -855,12 +855,13 @@
                             <th>Time</th>
                             <th>Room</th>
                             <th>Lecturer</th>
+                            <th>Attendance</th>
                             
                         </tr>
                     </thead>
                     <tbody id="schedule-table-body">
                         <tr>
-                            <td colspan="5" class="text-center py-8 text-gray-500">No class sessions scheduled.</td>
+                            <td colspan="6" class="text-center py-8 text-gray-500">No class sessions scheduled.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1144,7 +1145,7 @@
 
                 if (allClassSchedule.length === 0) {
                      
-                    this.scheduleTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-gray-500">No class sessions scheduled.</td></tr>`;
+                    this.scheduleTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-500">No class sessions scheduled.</td></tr>`;
                     return;
                 }
 
@@ -1164,17 +1165,71 @@
 
                 sortedSchedule.forEach(session => {
                     const row = document.createElement('tr');
-                    // No action button in the table
+
+                    const alreadyMarked = this.hasAttendanceRecordForSession(session.id);
+                    const isActiveNow = this.isSessionActiveNow(session);
+
+                    let actionCell = '<span class="text-muted">Not active</span>';
+                    if (alreadyMarked) {
+                        actionCell = '<span class="status-badge status-present">Marked</span>';
+                    } else if (isActiveNow) {
+                        actionCell = `<button type="button" class="btn btn-sm btn-primary mark-attendance-btn" data-session-id="${session.id}">Mark Now</button>`;
+                    }
+
                     row.innerHTML = `
                         <td>${session.course_name} (${session.course_code})</td>
                         <td>${session.day_of_week}</td>
                         <td>${session.start_time} - ${session.end_time}</td>
                         <td>${session.room}</td>
                         <td>${session.lecturer_name}</td>
+                        <td>${actionCell}</td>
                     `;
                     this.scheduleTableBody.appendChild(row);
                 });
-                // Removed event listener for Mark Attendance buttons as they are no longer in the table
+
+                this.scheduleTableBody.querySelectorAll('.mark-attendance-btn').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        const sessionId = Number(button.dataset.sessionId);
+                        const session = allClassSchedule.find((s) => Number(s.id) === sessionId);
+                        if (session) {
+                            this.openAttendanceModalForSession(session);
+                        }
+                    });
+                });
+            }
+
+            hasAttendanceRecordForSession(sessionId) {
+                return allAttendanceRecords.some(rec => Number(rec.session_id) === Number(sessionId));
+            }
+
+            isSessionActiveNow(session) {
+                const now = new Date();
+                const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const sessionDayIndex = dayOrder.indexOf(session.day_of_week);
+
+                if (sessionDayIndex !== now.getDay()) {
+                    return false;
+                }
+
+                const sessionStart = new Date();
+                const sessionEnd = new Date();
+                const [startHours, startMinutes] = session.start_time.split(':').map(Number);
+                const [endHours, endMinutes] = session.end_time.split(':').map(Number);
+                sessionStart.setHours(startHours, startMinutes, 0, 0);
+                sessionEnd.setHours(endHours, endMinutes, 0, 0);
+
+                return now >= sessionStart && now <= sessionEnd;
+            }
+
+            openAttendanceModalForSession(session) {
+                this.currentClassNameDisplay.textContent = `${session.course_name} (${session.day_of_week} ${session.start_time})`;
+                this.captureAttendanceButton.dataset.sessionId = session.id;
+
+                const cameraModal = new bootstrap.Modal(this.cameraAttendanceModalElement);
+                cameraModal.show();
+                this.startCamera()
+                    .then(() => this.autoMarkAttendance())
+                    .catch(() => {});
             }
 
             // --- Dashboard Attendance Summary Logic ---
@@ -1460,19 +1515,12 @@
 
                         // Check if current time is within the session start and grace period
                         if (now >= sessionStart && now <= sessionEnd) {
-                            const alreadyMarked = allAttendanceRecords.some(rec => Number(rec.session_id) === Number(session.id));
+                            const alreadyMarked = this.hasAttendanceRecordForSession(session.id);
                             if (alreadyMarked) {
                                 continue;
                             }
 
-                            this.currentClassNameDisplay.textContent = `${session.course_name} (${session.day_of_week} ${session.start_time})`;
-                            this.captureAttendanceButton.dataset.sessionId = session.id;
-
-                            const cameraModal = new bootstrap.Modal(this.cameraAttendanceModalElement);
-                            cameraModal.show();
-                            this.startCamera()
-                                .then(() => this.autoMarkAttendance())
-                                .catch(() => {});
+                            this.openAttendanceModalForSession(session);
                             activeSessionFound = true;
                             break; // Open modal for the first active session found and stop
                         }
