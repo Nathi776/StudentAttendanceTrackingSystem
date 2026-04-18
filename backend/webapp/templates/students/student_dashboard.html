@@ -1290,10 +1290,14 @@
                     const data = await response.json().catch(() => ({}));
 
                     if (response.ok) {
-                        showAlert("Success!", `Attendance marked as ${data.status} for ${data.course_name}.`, "success");
+                        if (data.already_marked) {
+                            showAlert("Attendance", data.message || "Attendance already marked for this class.", "info");
+                        } else {
+                            showAlert("Success!", `Attendance marked as ${data.status} for ${data.course_name}.`, "success");
+                        }
 
                         // keep your existing local update behavior
-                        const existingRecordIndex = allAttendanceRecords.findIndex(rec => rec.session_id === sessionId);
+                        const existingRecordIndex = allAttendanceRecords.findIndex(rec => Number(rec.session_id) === Number(sessionId));
                         if (existingRecordIndex > -1) allAttendanceRecords[existingRecordIndex] = data.new_record;
                         else allAttendanceRecords.push(data.new_record);
 
@@ -1456,6 +1460,11 @@
 
                         // Check if current time is within the session start and grace period
                         if (now >= sessionStart && now <= sessionEnd) {
+                            const alreadyMarked = allAttendanceRecords.some(rec => Number(rec.session_id) === Number(session.id));
+                            if (alreadyMarked) {
+                                continue;
+                            }
+
                             this.currentClassNameDisplay.textContent = `${session.course_name} (${session.day_of_week} ${session.start_time})`;
                             this.captureAttendanceButton.dataset.sessionId = session.id;
 
