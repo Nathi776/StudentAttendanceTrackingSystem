@@ -16,6 +16,7 @@ import cv2
 from django.utils import timezone
 from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login, logout
+import logging
 
 
 from .models import User, Student, Lecturer, Course, Enrollment, ClassSession, Attendance, FaceEncoding
@@ -29,6 +30,8 @@ from .forms import AnnouncementForm
  
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
+
+logger = logging.getLogger(__name__)
 from django.db.models import Prefetch, Count, Q
 from django.http import JsonResponse
 import base64
@@ -765,9 +768,13 @@ def enroll_face_api(request):
 
     try:
         from .face_engine import encode_single_face
-    except Exception:
+    except Exception as exc:
+        logger.exception("Failed to import face engine for enrollment")
         return JsonResponse(
-            {'error': 'Face recognition service is unavailable on this server.'},
+            {
+                'error': 'Face recognition service is unavailable on this server.',
+                'details': str(exc),
+            },
             status=503,
         )
 
@@ -855,9 +862,13 @@ def mark_attendance_api(request):
 
     try:
         from .face_engine import encode_single_face, match_face
-    except Exception:
+    except Exception as exc:
+        logger.exception("Failed to import face engine for attendance")
         return JsonResponse(
-            {'error': 'Face recognition service is unavailable on this server.'},
+            {
+                'error': 'Face recognition service is unavailable on this server.',
+                'details': str(exc),
+            },
             status=503,
         )
 
