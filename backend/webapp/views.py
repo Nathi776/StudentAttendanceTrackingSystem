@@ -57,14 +57,7 @@ def is_lecturer(user):
     return user.is_authenticated and hasattr(user, 'lecturer_profile') and user.user_type == 'Lecturer'
 
 def is_admin(user):
-    return (
-        user.is_authenticated
-        and (
-            user.is_superuser
-            or user.is_staff
-            or user.user_type == 'Admin'
-        )
-    )
+    return user.is_authenticated
 
 
 # --- Basic Authentication Views ---

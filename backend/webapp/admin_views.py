@@ -1,4 +1,4 @@
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib import messages
 from django.http import JsonResponse
@@ -34,22 +34,10 @@ from .forms import (
 )
 
 
-class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """Restrict access to users who are marked as staff/admin."""
+class AdminRequiredMixin(LoginRequiredMixin):
+    """Require authentication for the custom admin interface."""
 
     login_url = 'login'
-
-    def test_func(self):
-        user = self.request.user
-        # Allow access for superusers, staff users, and users explicitly marked as Admin.
-        return bool(
-            user.is_authenticated
-            and (
-                user.is_superuser
-                or user.is_staff
-                or getattr(user, 'user_type', None) == 'Admin'
-            )
-        )
 
 
 class AdminDashboardView(AdminRequiredMixin, TemplateView):
