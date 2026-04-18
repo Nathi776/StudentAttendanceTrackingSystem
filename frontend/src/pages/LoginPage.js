@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { login } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
+const BACKEND_BASE = (process.env.REACT_APP_API_BASE || 'http://localhost:5000').replace(/\/$/, '');
+
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +27,7 @@ export default function LoginPage() {
         navigate('/lecturer');
       } else {
         // Admin users are redirected to the Django admin UI
-        window.location.href = 'http://localhost:5000/admin/';
+        window.location.href = `${BACKEND_BASE}/admin/`;
       }
     } catch (err) {
       setError(err.message || 'Unable to login.');
