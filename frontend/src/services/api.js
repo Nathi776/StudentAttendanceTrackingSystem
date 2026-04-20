@@ -11,9 +11,11 @@ function buildUrl(path) {
 
 async function fetchJson(path, options = {}) {
   const url = buildUrl(path);
+  const method = (options.method || 'GET').toUpperCase();
+  const shouldSetJsonContentType = options.body !== undefined && method !== 'GET' && method !== 'HEAD';
 
   const headers = {
-    'Content-Type': 'application/json',
+    ...(shouldSetJsonContentType ? { 'Content-Type': 'application/json' } : {}),
     ...options.headers,
   };
 
