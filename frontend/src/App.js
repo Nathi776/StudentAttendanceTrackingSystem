@@ -1,9 +1,18 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import LoginPage from './pages/LoginPage';
 import StudentDashboard from './pages/StudentDashboard';
 import LecturerDashboard from './pages/LecturerDashboard';
+
+const BACKEND_BASE = (process.env.REACT_APP_API_BASE || 'https://wonderful-generosity-production.up.railway.app').replace(/\/$/, '');
+
+function ExternalRedirect({ to }) {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+
+  return <p>Redirecting...</p>;
+}
 
 function ProtectedRoute({ children, requiredRole }) {
   const { user, loading } = useAuth();
@@ -13,11 +22,11 @@ function ProtectedRoute({ children, requiredRole }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <ExternalRedirect to={`${BACKEND_BASE}/login/`} />;
   }
 
   if (requiredRole && user.user_type !== requiredRole) {
-    return <Navigate to="/login" replace />;
+    return <ExternalRedirect to={`${BACKEND_BASE}/login/`} />;
   }
 
   return children;
@@ -28,8 +37,8 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<ExternalRedirect to={`${BACKEND_BASE}/login/`} />} />
+          <Route path="/login" element={<ExternalRedirect to={`${BACKEND_BASE}/login/`} />} />
           <Route
             path="/student"
             element={
@@ -46,7 +55,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<LoginPage />} />
+          <Route path="*" element={<ExternalRedirect to={`${BACKEND_BASE}/login/`} />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
