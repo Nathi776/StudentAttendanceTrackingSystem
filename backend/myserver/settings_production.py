@@ -19,6 +19,7 @@ from .settings import *  # noqa: F401,F403
 from .settings import _get_list_env
 
 import os
+from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------
 # Basic security settings (overrides for production)
