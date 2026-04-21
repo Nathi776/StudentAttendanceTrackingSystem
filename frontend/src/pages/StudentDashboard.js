@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { getStudentDashboard } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import ThemeToggle from '../components/ThemeToggle';
+import AIChatBox from '../components/AIChatBox';
 
 export default function StudentDashboard() {
   const [data, setData] = useState(null);
@@ -26,6 +28,7 @@ export default function StudentDashboard() {
 
   return (
     <div className="page">
+      <ThemeToggle />
       <header>
         <h1>Student Dashboard</h1>
         <button onClick={signOut}>Logout</button>
@@ -65,6 +68,8 @@ export default function StudentDashboard() {
           </ul>
         </section>
       )}
+
+      <AIChatBox />
     </div>
   );
 }

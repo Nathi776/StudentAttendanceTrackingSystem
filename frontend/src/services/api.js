@@ -1,6 +1,21 @@
 const DEFAULT_API_BASE = 'https://wonderful-generosity-production.up.railway.app';
 const API_BASE = (process.env.REACT_APP_API_BASE || DEFAULT_API_BASE).replace(/\/$/, '');
 
+function getCookie(name) {
+  if (typeof document === 'undefined' || !document.cookie) {
+    return '';
+  }
+
+  const cookies = document.cookie.split(';');
+  for (let i = 0; i < cookies.length; i += 1) {
+    const cookie = cookies[i].trim();
+    if (cookie.startsWith(`${name}=`)) {
+      return decodeURIComponent(cookie.slice(name.length + 1));
+    }
+  }
+  return '';
+}
+
 function buildUrl(path) {
   // If path already includes protocol, leave it alone.
   if (path.startsWith('http://') || path.startsWith('https://')) {
@@ -11,11 +26,17 @@ function buildUrl(path) {
 
 async function fetchJson(path, options = {}) {
   const url = buildUrl(path);
+  const method = (options.method || 'GET').toUpperCase();
+  const csrfToken = getCookie('csrftoken');
 
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  if (csrfToken && method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    headers['X-CSRFToken'] = csrfToken;
+  }
 
   const finalOptions = {
     credentials: 'include',
@@ -70,4 +91,11 @@ export async function getStudentDashboard() {
 
 export async function getLecturerDashboard() {
   return fetchJson('/api/lecturer/dashboard/');
+}
+
+export async function askAiChat(message) {
+  return fetchJson('/api/chat/', {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
 }
