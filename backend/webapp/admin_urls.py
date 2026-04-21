@@ -30,12 +30,6 @@ urlpatterns = [
     path('modules/<str:pk>/edit/', admin_views.AdminModuleUpdateView.as_view(), name='admin_module_edit'),
     path('modules/<str:pk>/delete/', admin_views.AdminModuleDeleteView.as_view(), name='admin_module_delete'),
 
-    # Program management
-    path('programs/', admin_views.AdminProgramListView.as_view(), name='admin_program_list'),
-    path('programs/add/', admin_views.AdminProgramCreateView.as_view(), name='admin_program_add'),
-    path('programs/<str:pk>/edit/', admin_views.AdminProgramUpdateView.as_view(), name='admin_program_edit'),
-    path('programs/<str:pk>/delete/', admin_views.AdminProgramDeleteView.as_view(), name='admin_program_delete'),
-
     # Course management
     path('courses/', admin_views.AdminCourseListView.as_view(), name='admin_course_list'),
     path('courses/add/', admin_views.AdminCourseCreateView.as_view(), name='admin_course_add'),
@@ -66,12 +60,6 @@ urlpatterns = [
     path('face-encodings/add/', admin_views.AdminFaceEncodingCreateView.as_view(), name='admin_faceencoding_add'),
     path('face-encodings/<str:pk>/edit/', admin_views.AdminFaceEncodingUpdateView.as_view(), name='admin_faceencoding_edit'),
     path('face-encodings/<str:pk>/delete/', admin_views.AdminFaceEncodingDeleteView.as_view(), name='admin_faceencoding_delete'),
-
-    # Groups & Permissions (mirror Django Admin)
-    path('groups/', admin_views.AdminGroupListView.as_view(), name='admin_group_list'),
-    path('groups/add/', admin_views.AdminGroupCreateView.as_view(), name='admin_group_add'),
-    path('groups/<str:pk>/edit/', admin_views.AdminGroupUpdateView.as_view(), name='admin_group_edit'),
-    path('groups/<str:pk>/delete/', admin_views.AdminGroupDeleteView.as_view(), name='admin_group_delete'),
 
     path('permissions/', admin_views.AdminPermissionListView.as_view(), name='admin_permission_list'),
     path('permissions/add/', admin_views.AdminPermissionCreateView.as_view(), name='admin_permission_add'),

@@ -7,14 +7,13 @@ from django.shortcuts import redirect, get_object_or_404
 from django.views import View
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, FormView
 
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Permission
 
 from .models import (
     User,
     Student,
     Lecturer,
     Module,
-    Program,
     Course,
     Enrollment,
     ClassSession,
@@ -51,13 +50,11 @@ class AdminDashboardView(AdminRequiredMixin, TemplateView):
                 'total_students': Student.objects.count(),
                 'total_lecturers': Lecturer.objects.count(),
                 'total_modules': Module.objects.count(),
-                'total_programs': Program.objects.count(),
                 'total_courses': Course.objects.count(),
                 'total_enrollments': Enrollment.objects.count(),
                 'total_sessions': ClassSession.objects.count(),
                 'total_attendance': Attendance.objects.count(),
                 'total_face_encodings': FaceEncoding.objects.count(),
-                'total_groups': Group.objects.count(),
                 'total_permissions': Permission.objects.count(),
                 # Provide lists for the dashboard quick-links
                 'students': [
@@ -290,30 +287,6 @@ class AdminUserDeleteView(AdminModelDeleteView):
     model = User
 
 
-# --- Group / Permission Views (to mirror Django admin capabilities) ---
-
-class AdminGroupListView(AdminModelListView):
-    model = Group
-    search_fields = ['name']
-    add_url_name = 'admin_group_add'
-    change_url_name = 'admin_group_edit'
-    delete_url_name = 'admin_group_delete'
-
-
-class AdminGroupCreateView(AdminModelFormView, CreateView):
-    model = Group
-    fields = '__all__'
-
-
-class AdminGroupUpdateView(AdminModelFormView, UpdateView):
-    model = Group
-    fields = '__all__'
-
-
-class AdminGroupDeleteView(AdminModelDeleteView):
-    model = Group
-
-
 class AdminPermissionListView(AdminModelListView):
     model = Permission
     search_fields = ['name', 'codename', 'content_type__app_label']
@@ -529,28 +502,6 @@ class AdminModuleUpdateView(AdminModelFormView, UpdateView):
 
 class AdminModuleDeleteView(AdminModelDeleteView):
     model = Module
-
-
-class AdminProgramListView(AdminModelListView):
-    model = Program
-    search_fields = ['program_code', 'program_name']
-    add_url_name = 'admin_program_add'
-    change_url_name = 'admin_program_edit'
-    delete_url_name = 'admin_program_delete'
-
-
-class AdminProgramCreateView(AdminModelFormView, CreateView):
-    model = Program
-    fields = '__all__'
-
-
-class AdminProgramUpdateView(AdminModelFormView, UpdateView):
-    model = Program
-    fields = '__all__'
-
-
-class AdminProgramDeleteView(AdminModelDeleteView):
-    model = Program
 
 
 class AdminCourseListView(AdminModelListView):

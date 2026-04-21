@@ -1,13 +1,15 @@
  
 
 from django.contrib import admin
+from django.contrib.admin.sites import NotRegistered
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import Group
 from django.db import IntegrityError  
 from django.contrib import messages
 from django.http import JsonResponse
 from django.urls import path
 
-from .models import User, Student, Lecturer, Module, Program, Course, Enrollment, ClassSession, Attendance
+from .models import User, Student, Lecturer, Module, Course, Enrollment, ClassSession, Attendance
 from .forms import CourseForm, EnrollmentForm, ModuleForm
 
 class StudentInline(admin.StackedInline):
@@ -30,7 +32,7 @@ class CustomUserAdmin(BaseUserAdmin):
         (None, {'fields': ('username', 'password')}),
         (('Personal info'), {'fields': ('first_name', 'last_name', 'email', 'user_type')}),
         (('Permissions'), {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'user_permissions'),
         }),
         (('Important dates'), {'fields': ('last_login', 'date_joined')}),
     )
@@ -174,22 +176,26 @@ class EnrollmentAdmin(admin.ModelAdmin):
 
 class LecturerAdmin(admin.ModelAdmin):
     list_display = ('user', 'department')
-    filter_horizontal = ('modules', 'programs')
+    filter_horizontal = ('modules',)
 
 
 class StudentAdmin(admin.ModelAdmin):
     list_display = ('user', 'program')
-    filter_horizontal = ('modules', 'programs')
+    filter_horizontal = ('modules',)
 
 
 admin.site.register(Module, ModuleAdmin)
-admin.site.register(Program)
 admin.site.register(Student, StudentAdmin)
 admin.site.register(Lecturer, LecturerAdmin)
 admin.site.register(Course, CourseAdmin)
 admin.site.register(Enrollment, EnrollmentAdmin)
 admin.site.register(ClassSession)
 admin.site.register(Attendance)
+
+try:
+    admin.site.unregister(Group)
+except NotRegistered:
+    pass
 
 from .models import FaceEncoding
 admin.site.register(FaceEncoding)

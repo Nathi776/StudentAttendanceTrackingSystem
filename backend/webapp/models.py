@@ -38,12 +38,6 @@ class Student(models.Model):
     )
     
     program = models.CharField(max_length=100, blank=True, null=True, verbose_name='Course') # <-- ADD blank=True, null=True
-    programs = models.ManyToManyField(
-        'Program',
-        blank=True,
-        related_name='students',
-        help_text='Programs that this student is enrolled in.'
-    )
     modules = models.ManyToManyField(
         'Module',
         blank=True,
@@ -90,12 +84,6 @@ class Lecturer(models.Model):
         related_name='lecturers',
         help_text='Modules that this lecturer is assigned to.'
     )
-    programs = models.ManyToManyField(
-        'Program',
-        blank=True,
-        related_name='lecturers',
-        help_text='Programs that this lecturer is associated with.'
-    )
 
     def __str__(self):
         return f"Lecturer: {self.user.first_name} {self.user.last_name} ({self.department or 'No Department'})" # Added 'or No Department'
@@ -132,23 +120,7 @@ class Module(models.Model):
         return f"{self.module_code} - {self.module_name}"
 
 
-# --- 5. Program Model ---
-class Program(models.Model):
-    """Represents an academic program (e.g., Bachelor of Science)."""
-    program_code = models.CharField(max_length=20, primary_key=True, help_text="Unique code for the program.")
-    program_name = models.CharField(max_length=255, help_text="Human-readable name for the program.")
-    description = models.TextField(blank=True, null=True, help_text="Optional description or notes about the program.")
-
-    class Meta:
-        verbose_name = _('program')
-        verbose_name_plural = _('programs')
-        ordering = ['program_code']
-
-    def __str__(self):
-        return f"{self.program_code} - {self.program_name}"
-
-
-# --- 6. Course Model ---
+# --- 5. Course Model ---
 class Course(models.Model):
     """Represents an academic course."""
     course_code = models.CharField(max_length=20, primary_key=True, help_text="Unique code for the course.")
