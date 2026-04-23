@@ -62,6 +62,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -167,3 +168,6 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# WhiteNoise configuration for efficient static file serving
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
