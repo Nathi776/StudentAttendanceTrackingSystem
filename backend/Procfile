@@ -1,1 +1,1 @@
-web: gunicorn myserver.wsgi:application --bind 0.0.0.0:8080
+web: DJANGO_DEBUG=False DJANGO_SETTINGS_MODULE=myserver.settings_production python manage.py collectstatic --noinput && DJANGO_DEBUG=False DJANGO_SETTINGS_MODULE=myserver.settings_production gunicorn myserver.wsgi:application --bind 0.0.0.0:8080

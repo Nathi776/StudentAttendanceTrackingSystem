@@ -105,6 +105,7 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 STATIC_URL = '/static/'
 STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT', os.path.join(BASE_DIR, 'static'))
 MEDIA_ROOT = os.environ.get('DJANGO_MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
+WHITENOISE_USE_FINDERS = True
 
 # ---------------------------------------------------------------------------
 # Additional production settings (optional)
