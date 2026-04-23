@@ -19,6 +19,7 @@ from .settings import *  # noqa: F401,F403
 from .settings import _get_list_env
 
 import os
+from django.core.exceptions import ImproperlyConfigured
 from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------
@@ -27,7 +28,9 @@ from urllib.parse import urlparse
 
 DEBUG = False
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-duqoi6mg5@fypw3@hy9%0=50sao8t$eti&_mtqt^(o%tf1yq(^')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    raise ImproperlyConfigured('DJANGO_SECRET_KEY must be set in production.')
 
 ALLOWED_HOSTS = _get_list_env(
     'DJANGO_ALLOWED_HOSTS',
@@ -96,6 +99,7 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL') or EMAIL_HOST_USER or 'no-reply@edutrack.local'
 
 # ---------------------------------------------------------------------------
 # Static and media files

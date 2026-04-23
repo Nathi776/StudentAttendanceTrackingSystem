@@ -6,6 +6,7 @@ from django.utils.html import strip_tags
 from django.contrib import messages # For displaying feedback messages
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from django.conf import settings
 
 from django.db.models import Prefetch, Count, Q
 from django.http import JsonResponse
@@ -559,8 +560,7 @@ def send_announcement(request):
                 text_content = strip_tags(html_content)  
 
                 try:
-                     
-                    sender_email = request.user.email if request.user.email else 'nyikogiven74@gmail.com' # Fallback sender
+                    sender_email = request.user.email or settings.DEFAULT_FROM_EMAIL
                     sender_name = request.user.get_full_name() or request.user.username
 
                     msg = EmailMultiAlternatives(
@@ -574,7 +574,8 @@ def send_announcement(request):
                     messages.success(request, f"Announcement sent successfully to {len(recipient_emails)} student(s).")
                     return redirect('lecturer_dashboard')  
                 except Exception as e:
-                    messages.error(request, f"Failed to send announcement: {e}. Check your email settings (settings.py) and ensure the sender email is valid.")
+                    logger.exception("Failed to send announcement email")
+                    messages.error(request, "Failed to send announcement. Please verify email configuration and try again.")
         else:
             messages.error(request, "Please correct the errors in the form.")
     else:
@@ -841,9 +842,8 @@ def enroll_face_api(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
+        logger.exception("Face enrollment failed")
+        return JsonResponse({'error': 'An internal error occurred while enrolling face data.'}, status=500)
 
 
 @login_required
