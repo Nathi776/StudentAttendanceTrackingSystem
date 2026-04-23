@@ -1,4 +1,7 @@
-const DEFAULT_API_BASE = 'https://wonderful-generosity-production.up.railway.app';
+const DEFAULT_API_BASE =
+  typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? 'http://localhost:8000'
+    : 'https://wonderful-generosity-production.up.railway.app';
 const API_BASE = (process.env.REACT_APP_API_BASE || DEFAULT_API_BASE).replace(/\/$/, '');
 
 function getCookie(name) {
@@ -69,6 +72,7 @@ async function fetchJson(path, options = {}) {
 }
 
 export async function login({ username, password }) {
+  await fetchJson('/api/auth/csrf/');
   return fetchJson('/api/auth/login/', {
     method: 'POST',
     body: JSON.stringify({ username, password }),

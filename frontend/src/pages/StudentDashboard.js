@@ -69,7 +69,7 @@ export default function StudentDashboard() {
         </section>
       )}
 
-      <AIChatBox />
+      {user?.user_type === 'Student' && <AIChatBox />}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 from django.contrib.auth import authenticate, login, logout
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -41,7 +41,14 @@ def api_status(request):
     return api_success({'status': 'ok'})
 
 
-@csrf_exempt
+@ensure_csrf_cookie
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def api_csrf(request):
+    """Set CSRF cookie for browser clients before state-changing requests."""
+    return api_success({'csrf_cookie_set': True})
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @authentication_classes([])
@@ -62,7 +69,6 @@ def api_login(request):
     return api_success({'user': user_data}, message='Logged in successfully.')
 
 
-@csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def api_logout(request):

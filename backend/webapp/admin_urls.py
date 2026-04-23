@@ -39,8 +39,8 @@ urlpatterns = [
     # Enrollment management
     path('enrollments/', admin_views.AdminEnrollmentListView.as_view(), name='admin_enrollment_list'),
     path('enrollments/add/', admin_views.AdminEnrollmentCreateView.as_view(), name='admin_enrollment_add'),
-    path('enrollments/<str:pk>/edit/', admin_views.AdminEnrollmentUpdateView.as_view(), name='admin_enrollment_edit'),
-    path('enrollments/<str:pk>/delete/', admin_views.AdminEnrollmentDeleteView.as_view(), name='admin_enrollment_delete'),
+    path('enrollments/<int:pk>/edit/', admin_views.AdminEnrollmentUpdateView.as_view(), name='admin_enrollment_edit'),
+    path('enrollments/<int:pk>/delete/', admin_views.AdminEnrollmentDeleteView.as_view(), name='admin_enrollment_delete'),
     path('enrollments/modules-for-course/', admin_views.AdminEnrollmentModulesForCourseView.as_view(), name='admin_enrollment_modules_for_course'),
 
     # Class Session management

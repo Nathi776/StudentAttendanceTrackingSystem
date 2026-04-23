@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { login } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
-const BACKEND_BASE = (process.env.REACT_APP_API_BASE || 'https://wonderful-generosity-production.up.railway.app').replace(/\/$/, '');
+const BACKEND_BASE = (
+  process.env.REACT_APP_API_BASE
+  || (
+    typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+      ? 'http://localhost:8000'
+      : 'https://wonderful-generosity-production.up.railway.app'
+  )
+).replace(/\/$/, '');
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -20,10 +27,10 @@ export default function LoginPage() {
 
     try {
       const response = await login({ username, password });
-      setUser(response.data?.user || null);
-      if (response.data?.user?.user_type === 'Student') {
+      setUser(response?.data?.user || null);
+      if (response?.data?.user?.user_type === 'Student') {
         navigate('/student');
-      } else if (response.data?.user?.user_type === 'Lecturer') {
+      } else if (response?.data?.user?.user_type === 'Lecturer') {
         navigate('/lecturer');
       } else {
         // Admin users are redirected to the Django admin UI
