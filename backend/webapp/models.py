@@ -266,7 +266,6 @@ class Attendance(models.Model):
     )
 
     class Meta:
-        unique_together = ('student', 'session')
         verbose_name = _('attendance')
         verbose_name_plural = _('attendance')
         ordering = ['-date_time']

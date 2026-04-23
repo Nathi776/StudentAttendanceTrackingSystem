@@ -4,7 +4,14 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import StudentDashboard from './pages/StudentDashboard';
 import LecturerDashboard from './pages/LecturerDashboard';
 
-const BACKEND_BASE = (process.env.REACT_APP_API_BASE || 'https://wonderful-generosity-production.up.railway.app').replace(/\/$/, '');
+const BACKEND_BASE = (
+  process.env.REACT_APP_API_BASE
+  || (
+    typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+      ? 'http://localhost:8000'
+      : 'https://wonderful-generosity-production.up.railway.app'
+  )
+).replace(/\/$/, '');
 
 function ExternalRedirect({ to }) {
   useEffect(() => {

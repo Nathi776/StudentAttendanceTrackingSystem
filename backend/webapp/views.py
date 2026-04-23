@@ -883,30 +883,6 @@ def mark_attendance_api(request):
         session = get_object_or_404(ClassSession, pk=session_id)
         student = request.user.student_profile
 
-        existing_record = Attendance.objects.filter(student=student, session=session).first()
-        if existing_record:
-            existing_record_data = {
-                'course_name': existing_record.session.course.course_name,
-                'course_code': existing_record.session.course.course_code,
-                'date_time': existing_record.date_time.isoformat(),
-                'status': existing_record.status,
-                'image_data_url': existing_record.image_data.url if existing_record.image_data else None,
-                'session_id': existing_record.session.id,
-                'session_day': existing_record.session.get_day_of_week_display(),
-                'session_start_time': existing_record.session.start_time.strftime('%H:%M'),
-                'session_end_time': existing_record.session.end_time.strftime('%H:%M'),
-            }
-            return JsonResponse(
-                {
-                    'message': f"Attendance already marked as {existing_record.status}.",
-                    'already_marked': True,
-                    'status': existing_record.status,
-                    'course_name': existing_record.session.course.course_name,
-                    'new_record': existing_record_data,
-                },
-                status=200,
-            )
-
         # --- Decode base64 image ---
         if ';base64,' in image_data_b64:
             fmt, imgstr = image_data_b64.split(';base64,')
@@ -986,7 +962,7 @@ def mark_attendance_api(request):
         }
 
         return JsonResponse({
-            'message': 'Attendance marked successfully!',
+            'message': 'Attendance saved successfully!',
             'status': attendance_record.status,
             'course_name': session.course.course_name,
             'ai_confidence': match.confidence,

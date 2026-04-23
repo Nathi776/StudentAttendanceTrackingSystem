@@ -314,11 +314,4 @@ class AttendanceForm(forms.ModelForm):
     
     def clean(self):
         cleaned_data = super().clean()
-        student = cleaned_data.get('student')
-        session = cleaned_data.get('session')
-
-      
-        if self.instance is None and student and session:  
-            if Attendance.objects.filter(student=student, session=session).exists():
-                raise forms.ValidationError("This student's attendance for this session has already been recorded.")
         return cleaned_data
