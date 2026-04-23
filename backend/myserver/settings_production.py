@@ -27,7 +27,7 @@ from urllib.parse import urlparse
 
 DEBUG = False
 
-SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-duqoi6mg5@fypw3@hy9%0=50sao8t$eti&_mtqt^(o%tf1yq(^')
 
 ALLOWED_HOSTS = _get_list_env(
     'DJANGO_ALLOWED_HOSTS',
