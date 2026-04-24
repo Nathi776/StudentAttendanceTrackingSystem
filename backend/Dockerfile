@@ -28,4 +28,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . .
 
+# Prepare the static root used by WhiteNoise and collect assets during the image build.
+RUN mkdir -p /app/static \
+ && python manage.py collectstatic --noinput
+
 CMD ["gunicorn", "myserver.wsgi:application", "--bind", "0.0.0.0:8080"]
