@@ -40,6 +40,20 @@ export default function StudentDashboard() {
       {data && (
         <section>
           <h2>Welcome, {user?.first_name}</h2>
+
+          <h3>Next Coming Session</h3>
+          {data.next_session ? (
+            <div style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '5px', backgroundColor: '#f9f9f9' }}>
+              <p><strong>{data.next_session.course_code}</strong>: {data.next_session.course_name}</p>
+              <p><strong>Day:</strong> {data.next_session.day_of_week}</p>
+              <p><strong>Time:</strong> {data.next_session.start_time} - {data.next_session.end_time}</p>
+              <p><strong>Room:</strong> {data.next_session.room}</p>
+              <p><strong>Lecturer:</strong> {data.next_session.lecturer}</p>
+            </div>
+          ) : (
+            <p>No upcoming sessions</p>
+          )}
+
           <h3>Courses</h3>
           <ul>
             {data.subjects?.map((subject) => (

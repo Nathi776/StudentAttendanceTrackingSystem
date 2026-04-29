@@ -137,12 +137,28 @@ def api_student_dashboard(request):
         for s in schedule_qs
     ]
 
+    # Next coming session
+    next_session_obj = schedule_qs.first()
+    next_session_data = None
+    if next_session_obj:
+        next_session_data = {
+            'id': next_session_obj.id,
+            'course_code': next_session_obj.course.course_code,
+            'course_name': next_session_obj.course.course_name,
+            'day_of_week': next_session_obj.day_of_week,
+            'start_time': next_session_obj.start_time.strftime('%H:%M'),
+            'end_time': next_session_obj.end_time.strftime('%H:%M'),
+            'room': next_session_obj.room,
+            'lecturer': next_session_obj.lecturer.user.get_full_name() if next_session_obj.lecturer else None,
+        }
+
     return api_success(
         {
             'student': student_data,
             'subjects': subjects_data,
             'attendance_records': attendance_data,
             'class_schedule': schedule_data,
+            'next_session': next_session_data,
         }
     )
 
