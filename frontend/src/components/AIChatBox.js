@@ -8,15 +8,21 @@ export default function AIChatBox() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      text: 'Hi, I am your EduTrack assistant. Ask me about attendance, modules, or login help.',
+      text: 'Hi, I am your EduTrack assistant. Ask me about your next session, attendance percentage, enrolled courses, or lecturer.',
     },
   ]);
 
+  const quickPrompts = [
+    'What is my next session?',
+    'What is my attendance percentage?',
+    'What courses am I enrolled in?',
+    'Who is my lecturer for CSC 201?',
+  ];
+
   const canSend = useMemo(() => input.trim().length > 0 && !sending, [input, sending]);
 
-  async function onSubmit(event) {
-    event.preventDefault();
-    const trimmed = input.trim();
+  async function sendMessage(text) {
+    const trimmed = text.trim();
     if (!trimmed || sending) {
       return;
     }
@@ -40,6 +46,11 @@ export default function AIChatBox() {
     } finally {
       setSending(false);
     }
+  }
+
+  async function onSubmit(event) {
+    event.preventDefault();
+    await sendMessage(input);
   }
 
   return (
@@ -131,6 +142,27 @@ export default function AIChatBox() {
             {sending && (
               <div style={{ color: 'var(--text)', opacity: 0.7, fontSize: '0.9rem' }}>Thinking...</div>
             )}
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 0.8rem 0.8rem' }}>
+            {quickPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => sendMessage(prompt)}
+                disabled={sending}
+                style={{
+                  border: '1px solid rgba(37,99,235,0.28)',
+                  background: 'rgba(37,99,235,0.08)',
+                  color: 'var(--text)',
+                  borderRadius: 999,
+                  padding: '0.35rem 0.65rem',
+                  fontSize: '0.82rem',
+                }}
+              >
+                {prompt}
+              </button>
+            ))}
           </div>
 
           <form onSubmit={onSubmit} style={{ display: 'flex', gap: 8, padding: '0.75rem', borderTop: '1px solid rgba(0,0,0,0.1)' }}>

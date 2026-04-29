@@ -52,6 +52,7 @@ from .forms import (
 import csv
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
+import re
 
 # --- Helper functions for user type checks ---
 def is_student(user):
@@ -589,6 +590,58 @@ def send_announcement(request):
     return render(request, 'lecturers/send_announcement.html', context)
 
 
+WEEKDAY_INDEX = {
+    'monday': 0,
+    'tuesday': 1,
+    'wednesday': 2,
+    'thursday': 3,
+    'friday': 4,
+    'saturday': 5,
+    'sunday': 6,
+}
+
+
+def _format_course_list(courses):
+    return ', '.join(courses) if courses else 'none'
+
+
+def _extract_course_from_message(message, enrolled_courses):
+    lower_message = message.lower()
+    for course in enrolled_courses:
+        course_code = course.course_code.lower()
+        course_name = course.course_name.lower()
+        if course_code in lower_message or course_name in lower_message:
+            return course
+
+    if len(enrolled_courses) == 1:
+        return enrolled_courses[0]
+
+    code_like_match = re.search(r'\b([a-z]{2,}\d{2,}[a-z\d]*)\b', lower_message)
+    if code_like_match:
+        requested_code = code_like_match.group(1)
+        for course in enrolled_courses:
+            if course.course_code.lower() == requested_code:
+                return course
+
+    return None
+
+
+def _get_next_session(sessions):
+    now = timezone.localtime()
+    today_index = now.weekday()
+    current_time = now.time()
+
+    def sort_key(session):
+        session_day_index = WEEKDAY_INDEX.get(session.day_of_week.lower(), 7)
+        day_delta = (session_day_index - today_index) % 7
+        if day_delta == 0 and session.start_time <= current_time:
+            day_delta = 7
+        return (day_delta, session.start_time)
+
+    upcoming_sessions = sorted(sessions, key=sort_key)
+    return upcoming_sessions[0] if upcoming_sessions else None
+
+
 def ai_chat(request):
     """Simple AI helper endpoint for UI chat widget.
 
@@ -604,19 +657,79 @@ def ai_chat(request):
     if not message:
         return JsonResponse({'reply': 'Please type a question or message so I can assist you.'})
 
-    user_name = request.user.first_name if request.user.is_authenticated else ''
     lower = message.lower()
 
-    if 'attendance' in lower:
-        reply = 'You can view and filter your attendance records from the Attendance section in your dashboard.'
-    elif 'login' in lower or 'sign in' in lower:
-        reply = 'Use your student/staff number and password to log in. If you forgot your password, use the "Forgot password" link on the login page.'
+    if not request.user.is_authenticated or not hasattr(request.user, 'student_profile'):
+        if 'login' in lower or 'sign in' in lower:
+            return JsonResponse({'reply': 'Use your student number and password to log in. If you forgot your password, use the login page reset option.'})
+        return JsonResponse({'reply': 'Please log in as a student so I can answer personal questions like your next session, attendance, courses, and lecturers.'})
+
+    student_profile = request.user.student_profile
+    enrolled_courses_qs = Enrollment.objects.filter(student=student_profile).select_related('course').order_by('course__course_code')
+    enrolled_courses = [enrollment.course for enrollment in enrolled_courses_qs]
+    enrolled_course_codes = [course.course_code for course in enrolled_courses]
+
+    next_session_triggers = ('next session', 'next class', 'upcoming session', 'coming session')
+    attendance_triggers = ('attendance percentage', 'attendance percent', 'attendance rate', 'my attendance')
+    enrolled_courses_triggers = ('enrolled courses', 'my courses', 'my subjects', 'what courses am i in', 'what subjects am i in')
+    lecturer_triggers = ('lecturer for', 'who teaches', 'who is teaching', 'course lecturer', 'my lecturer')
+
+    if any(trigger in lower for trigger in next_session_triggers):
+        schedule_qs = ClassSession.objects.filter(course__in=enrolled_courses).select_related('course', 'lecturer__user')
+        next_session = _get_next_session(list(schedule_qs))
+        if next_session:
+            lecturer_name = next_session.lecturer.user.get_full_name() if next_session.lecturer else 'N/A'
+            reply = (
+                f"Your next session is {next_session.course.course_code} - {next_session.course.course_name}. "
+                f"It is on {next_session.day_of_week} from {next_session.start_time.strftime('%H:%M')} to {next_session.end_time.strftime('%H:%M')} "
+                f"in {next_session.room} with {lecturer_name}."
+            )
+        else:
+            reply = 'I could not find any upcoming sessions for your enrolled courses.'
+    elif any(trigger in lower for trigger in attendance_triggers):
+        attendance_qs = Attendance.objects.filter(student=student_profile)
+        total_sessions = attendance_qs.count()
+        attended_sessions = attendance_qs.filter(status__in=['Present', 'Late']).count()
+        if total_sessions == 0:
+            reply = 'You do not have any attendance records yet.'
+        else:
+            percentage = (attended_sessions / total_sessions) * 100
+            reply = (
+                f"Your attendance is {percentage:.1f}% based on {attended_sessions} attended "
+                f"sessions out of {total_sessions} recorded sessions."
+            )
+    elif any(trigger in lower for trigger in enrolled_courses_triggers):
+        if enrolled_course_codes:
+            reply = f"You are enrolled in {_format_course_list(enrolled_course_codes)}."
+        else:
+            reply = 'You are not enrolled in any courses yet.'
+    elif any(trigger in lower for trigger in lecturer_triggers):
+        matched_course = _extract_course_from_message(message, enrolled_courses)
+        if matched_course:
+            lecturer_names = set()
+            lecturer_emails = set()
+            for module in matched_course.modules.all():
+                for lecturer in module.lecturers.all():
+                    lecturer_names.add(lecturer.user.get_full_name())
+                    if lecturer.user.email:
+                        lecturer_emails.add(lecturer.user.email)
+
+            if lecturer_names:
+                reply = f"The lecturer for {matched_course.course_code} - {matched_course.course_name} is {', '.join(sorted(lecturer_names))}."
+                if lecturer_emails:
+                    reply += f" Email: {', '.join(sorted(lecturer_emails))}."
+            else:
+                reply = f"I could not find a lecturer assigned to {matched_course.course_code} - {matched_course.course_name}."
+        else:
+            reply = 'Please mention the course code or course name so I can find the lecturer for you.'
+    elif 'attendance' in lower:
+        reply = 'You can ask: what is my attendance percentage?'
     elif 'course' in lower or 'module' in lower or 'class' in lower:
-        reply = 'Your courses and timetable are accessible from the dashboard. Students see enrolled subjects; lecturers see the modules they teach.'
+        reply = 'You can ask about your next session, enrolled courses, or the lecturer for a specific course.'
     elif 'hello' in lower or 'hi' in lower:
-        reply = f"Hello {user_name}! How can I help you today?"
+        reply = f"Hello {request.user.first_name}! Ask me about your next session, attendance percentage, enrolled courses, or lecturer."
     else:
-        reply = 'I am a helper bot for EduTrack. Ask me about attendance, logging in, or navigating the dashboard.'
+        reply = 'I can answer student-specific questions about your next session, attendance percentage, enrolled courses, and lecturers.'
 
     return JsonResponse({'reply': reply})
 
