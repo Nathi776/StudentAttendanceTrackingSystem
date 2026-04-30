@@ -65,6 +65,47 @@ def is_admin(user):
     return user.is_authenticated
 
 
+def _session_has_passed(session, now_local):
+    day_name_to_int = {
+        'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3,
+        'Friday': 4, 'Saturday': 5, 'Sunday': 6,
+    }
+    session_day_int = day_name_to_int.get(session.day_of_week)
+    if session_day_int is None:
+        return False
+
+    today_int = now_local.weekday()
+    if today_int > session_day_int:
+        return True
+    if today_int < session_day_int:
+        return False
+    return now_local.time() > session.end_time
+
+
+def _backfill_missed_attendance(student_profile):
+    now_local = timezone.localtime(timezone.now())
+    enrolled_course_ids = Enrollment.objects.filter(student=student_profile).values_list('course_id', flat=True)
+    sessions_qs = ClassSession.objects.filter(course__in=enrolled_course_ids).only('id', 'day_of_week', 'end_time')
+    existing_session_ids = set(student_profile.attendance_records.values_list('session_id', flat=True))
+
+    missed_records = []
+    for session in sessions_qs:
+        if session.id in existing_session_ids:
+            continue
+        if _session_has_passed(session, now_local):
+            missed_records.append(
+                Attendance(
+                    student=student_profile,
+                    session=session,
+                    status='Absent',
+                    date_time=now_local,
+                )
+            )
+
+    if missed_records:
+        Attendance.objects.bulk_create(missed_records)
+
+
 # --- Basic Authentication Views ---
  
 
@@ -157,6 +198,8 @@ def student_dashboard(request):
     # If the student has not enrolled a face encoding yet, redirect them to the setup page.
     if not FaceEncoding.objects.filter(student=student_profile).exists():
         return redirect('student_face_setup')
+
+    _backfill_missed_attendance(student_profile)
 
     enrolled_courses_qs = Enrollment.objects.filter(student=student_profile).select_related('course')
 
@@ -687,6 +730,7 @@ def ai_chat(request):
         else:
             reply = 'I could not find any upcoming sessions for your enrolled courses.'
     elif any(trigger in lower for trigger in attendance_triggers):
+        _backfill_missed_attendance(student_profile)
         attendance_qs = Attendance.objects.filter(student=student_profile)
         total_sessions = attendance_qs.count()
         attended_sessions = attendance_qs.filter(status__in=['Present', 'Late']).count()
@@ -1165,6 +1209,7 @@ def edit_class_session(request, pk):
 @user_passes_test(is_student)
 def download_attendance(request):
     student = request.user.student_profile
+    _backfill_missed_attendance(student)
     attendance_records = student.attendance_records.select_related('session__course').all()
 
     # Get filters from query params

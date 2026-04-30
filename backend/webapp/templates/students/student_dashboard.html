@@ -915,6 +915,7 @@
                 <div class="modal-body" id="custom-alert-body">
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary d-none" id="custom-alert-action-button">Try Again</button>
                     <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
                 </div>
             </div>
@@ -959,15 +960,36 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Utility function to display custom alerts
-        function showAlert(title, message, type = 'info') {
+        function showAlert(title, message, type = 'info', options = {}) {
             const alertModalElement = document.getElementById('custom-alert-modal');
             const alertModal = new bootstrap.Modal(alertModalElement);
             const alertTitle = document.getElementById('custom-alert-title');
             const alertBody = document.getElementById('custom-alert-body');
             const alertHeader = document.getElementById('custom-alert-header');
+            const alertActionButton = document.getElementById('custom-alert-action-button');
 
             alertTitle.textContent = title;
             alertBody.innerHTML = message; 
+
+            if (alertActionButton) {
+                const action = options.action || null;
+                alertActionButton.classList.toggle('d-none', !action);
+                alertActionButton.onclick = null;
+                if (action) {
+                    alertActionButton.textContent = action.label || 'Try Again';
+                    alertActionButton.onclick = () => {
+                        const closeAndRun = () => {
+                            alertModalElement.removeEventListener('hidden.bs.modal', closeAndRun);
+                            if (typeof action.onClick === 'function') {
+                                action.onClick();
+                            }
+                        };
+
+                        alertModalElement.addEventListener('hidden.bs.modal', closeAndRun, { once: true });
+                        alertModal.hide();
+                    };
+                }
+            }
 
             // Set header background based on type
             alertHeader.className = 'modal-header'; // Reset classes
@@ -1365,21 +1387,45 @@
                     }
 
                     const errMsg = (data.error || data.status || "Attendance failed").toString();
+                    const isNoFaceDetected = errMsg.toLowerCase().includes("no face");
 
                     // retry once if "No face detected"
-                    if (errMsg.toLowerCase().includes("no face") && retryCount < 1) {
+                    if (isNoFaceDetected && retryCount < 1) {
                         if (statusEl) statusEl.textContent = "No face detected… trying again.";
                         await new Promise(r => setTimeout(r, 800));
                         return this.autoMarkAttendance(retryCount + 1);
                     }
 
-                    showAlert("Attendance Failed", errMsg, "danger");
+                    const cameraModalInstance = bootstrap.Modal.getInstance(this.cameraAttendanceModalElement);
+                    if (cameraModalInstance) cameraModalInstance.hide();
+
                     this.stopCamera();
+
+                    if (isNoFaceDetected) {
+                        showAlert("Attendance Failed", errMsg, "danger", {
+                            action: {
+                                label: "Try Again",
+                                onClick: () => {
+                                    const session = allClassSchedule.find((item) => Number(item.id) === Number(sessionId));
+                                    if (session) {
+                                        this.openAttendanceModalForSession(session);
+                                    }
+                                }
+                            }
+                        });
+                        return;
+                    }
+
+                    showAlert("Attendance Failed", errMsg, "danger");
 
                 } catch (e) {
                     console.error(e);
-                    showAlert("Attendance Failed", e.message, "danger");
+                    const cameraModalInstance = bootstrap.Modal.getInstance(this.cameraAttendanceModalElement);
+                    if (cameraModalInstance) cameraModalInstance.hide();
+
                     this.stopCamera();
+
+                    showAlert("Attendance Failed", e.message, "danger");
                 }
             }
 
@@ -1436,10 +1482,16 @@
                         const cameraModalInstance = bootstrap.Modal.getInstance(this.cameraAttendanceModalElement);
                         if (cameraModalInstance) cameraModalInstance.hide();
                     } else {
+                        const cameraModalInstance = bootstrap.Modal.getInstance(this.cameraAttendanceModalElement);
+                        if (cameraModalInstance) cameraModalInstance.hide();
+
                         showAlert("Attendance Failed", data.error || "An error occurred while marking attendance.", "danger");
                     }
                 } catch (error) {
                     console.error('Error marking attendance:', error);
+                    const cameraModalInstance = bootstrap.Modal.getInstance(this.cameraAttendanceModalElement);
+                    if (cameraModalInstance) cameraModalInstance.hide();
+
                     showAlert("Network Error", "Could not connect to the server. Please check your internet connection.", "danger");
                 } finally {
                     this.captureAttendanceButton.disabled = false; // Re-enable button
