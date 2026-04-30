@@ -40,6 +40,10 @@
         box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
     }
 
+    .ai-chat-toggle.hidden {
+        display: none;
+    }
+
     .ai-chat-panel {
         display: none;
         flex-direction: column;
@@ -213,11 +217,13 @@
 
         const openChat = () => {
             panel.classList.add('open');
+            toggleBtn.classList.add('hidden');
             input.focus();
         };
 
         const closeChat = () => {
             panel.classList.remove('open');
+            toggleBtn.classList.remove('hidden');
         };
 
         const sendMessage = async (message) => {
