@@ -170,7 +170,7 @@ export default function AIChatBox() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask me anything..."
-              style={{ flex: 1, margin: 0 }}
+              style={{ flex: 1, margin: 0, color: '#000' }}
             />
             <button type="submit" disabled={!canSend}>
               Send
