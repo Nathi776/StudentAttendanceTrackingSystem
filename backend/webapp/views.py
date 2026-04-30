@@ -1087,11 +1087,17 @@ def mark_attendance_api(request):
         content_file = ContentFile(image_bytes, name=file_name)
 
         # --- Determine status based on local configured timezone ---
-        current_time = timezone.localtime(timezone.now()).time()
-        if current_time <= session.start_time:
+        now_local = timezone.localtime(timezone.now())
+        session_start_dt = datetime.combine(now_local.date(), session.start_time)
+        session_end_dt = datetime.combine(now_local.date(), session.end_time)
+        grace_deadline_dt = session_start_dt + timedelta(minutes=15)
+
+        if now_local <= session_start_dt:
             attendance_status = 'Present'
-        elif session.start_time < current_time <= session.end_time:
+        elif now_local <= grace_deadline_dt and now_local <= session_end_dt:
             attendance_status = 'Present'
+        elif now_local <= session_end_dt:
+            attendance_status = 'Late'
         else:
             attendance_status = 'Absent'
 
