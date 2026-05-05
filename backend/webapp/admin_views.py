@@ -290,6 +290,8 @@ class AdminUserPasswordChangeView(AdminRequiredMixin, FormView):
         return context
 
     def form_valid(self, form):
+        # Persist the new password from SetPasswordForm.
+        form.save()
         response = super().form_valid(form)
         messages.success(self.request, f"Password updated for {self.user_obj.username}.")
         return response
