@@ -925,7 +925,7 @@ def enroll_face_api(request):
         return JsonResponse({'error': 'Invalid request method.'}, status=405)
 
     try:
-        from .face_engine import encode_single_face
+        from .face_engine import encode_single_face, match_face
     except Exception as exc:
         logger.exception("Failed to import face engine for enrollment")
         return JsonResponse(
@@ -966,28 +966,45 @@ def enroll_face_api(request):
             return JsonResponse({'error': 'Multiple faces detected. Ensure only you are in the frame.'}, status=400)
         
         # ---- Prevent duplicate face enrollment (same person for multiple students) ----
-        new_enc = np.array(enc_result.encoding, dtype=np.float32)
+        # Use a stricter threshold and ignore malformed historical encodings to reduce false positives.
+        new_enc = np.array(enc_result.encoding, dtype=np.float32).reshape(-1)
+        if new_enc.size != 128 or not np.isfinite(new_enc).all():
+            return JsonResponse({'error': 'Invalid face signature generated. Please try again.'}, status=400)
 
-        # How strict to be: lower = stricter
-        DUPLICATE_THRESHOLD = 0.50  # start here; try 0.48 if still too lenient
+        # Lower threshold means stricter matching; this helps avoid "already registered" false positives.
+        DUPLICATE_THRESHOLD = 0.42
 
-        # Compare against every existing enrolled face
-        for fe in FaceEncoding.objects.select_related('student').all():
-            # allow the same student to re-enroll/update their own face
-            if fe.student_id == student.pk:
+        known_encodings = []
+        known_student_ids = []
+        for fe in FaceEncoding.objects.select_related('student').exclude(student=student):
+            old_enc = np.array(fe.encoding, dtype=np.float32).reshape(-1)
+            if old_enc.size != 128 or not np.isfinite(old_enc).all():
+                logger.warning("Skipping malformed FaceEncoding for student_id=%s", fe.student_id)
                 continue
+            known_encodings.append(old_enc)
+            known_student_ids.append(fe.student_id)
 
-            old_enc = np.array(fe.encoding, dtype=np.float32)
-            dist = np.linalg.norm(old_enc - new_enc)
-
-            if dist < DUPLICATE_THRESHOLD:
-                return JsonResponse(
-                    {
-                        "error": "This face is already enrolled under another student account.",
-                        "distance": float(dist),
-                    },
-                    status=409
-                )
+        duplicate_match = match_face(
+            encoding=new_enc,
+            known_encodings=known_encodings,
+            known_student_ids=known_student_ids,
+            threshold=DUPLICATE_THRESHOLD,
+        )
+        if duplicate_match.status == "MATCH":
+            logger.info(
+                "Duplicate enrollment blocked: user_id=%s matched_student_id=%s distance=%.4f",
+                request.user.id,
+                duplicate_match.matched_student_id,
+                duplicate_match.distance if duplicate_match.distance is not None else -1,
+            )
+            return JsonResponse(
+                {
+                    "error": "This face appears to already be enrolled under another student account.",
+                    "matched_student_id": duplicate_match.matched_student_id,
+                    "distance": float(duplicate_match.distance) if duplicate_match.distance is not None else None,
+                },
+                status=409,
+            )
 
         FaceEncoding.objects.update_or_create(
             student=student,
