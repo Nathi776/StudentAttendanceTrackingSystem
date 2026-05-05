@@ -37,6 +37,18 @@ class AdminRequiredMixin(LoginRequiredMixin):
     """Require authentication for the custom admin interface."""
 
     login_url = 'login'
+    
+    def dispatch(self, request, *args, **kwargs):
+        """Verify user is logged in AND has admin role."""
+        if not request.user.is_authenticated:
+            return redirect(self.login_url)
+        
+        # Check if user is admin
+        if not (request.user.is_superuser or request.user.user_type == 'Admin'):
+            messages.error(request, 'You do not have permission to access this page.')
+            return redirect('student_dashboard' if hasattr(request.user, 'student_profile') else 'lecturer_dashboard' if hasattr(request.user, 'lecturer_profile') else 'login')
+        
+        return super().dispatch(request, *args, **kwargs)
 
 
 class AdminDashboardView(AdminRequiredMixin, TemplateView):
