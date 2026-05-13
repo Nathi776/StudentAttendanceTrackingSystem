@@ -1105,8 +1105,8 @@ def mark_attendance_api(request):
 
         # --- Determine status based on local configured timezone ---
         now_local = timezone.localtime(timezone.now())
-        session_start_dt = datetime.combine(now_local.date(), session.start_time)
-        session_end_dt = datetime.combine(now_local.date(), session.end_time)
+        session_start_dt = timezone.make_aware(datetime.combine(now_local.date(), session.start_time))
+        session_end_dt = timezone.make_aware(datetime.combine(now_local.date(), session.end_time))
         grace_deadline_dt = session_start_dt + timedelta(minutes=15)
 
         if now_local <= session_start_dt:
