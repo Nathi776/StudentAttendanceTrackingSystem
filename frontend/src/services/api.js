@@ -1,7 +1,8 @@
+// const PRIMARY_API = 'https://wonderful-generosity-production.up.railway.app';
 const DEFAULT_API_BASE =
   typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
     ? 'http://localhost:8000'
-    : 'https://wonderful-generosity-production.up.railway.app';
+    : 'https://studentattendancetrackingsystem-production-6440.up.railway.app';
 const API_BASE = (process.env.REACT_APP_API_BASE || DEFAULT_API_BASE).replace(/\/$/, '');
 
 function getCookie(name) {
