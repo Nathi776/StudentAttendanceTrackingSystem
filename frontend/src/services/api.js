@@ -90,12 +90,20 @@ export async function getCurrentUser() {
   return fetchJson('/api/auth/me/');
 }
 
-export async function getStudentDashboard() {
-  return fetchJson('/api/student/dashboard/');
+export async function getStudentDashboard(day = null) {
+  let url = '/api/student/dashboard/';
+  if (day) {
+    url += `?day=${encodeURIComponent(day)}`;
+  }
+  return fetchJson(url);
 }
 
-export async function getLecturerDashboard() {
-  return fetchJson('/api/lecturer/dashboard/');
+export async function getLecturerDashboard(day = null) {
+  let url = '/api/lecturer/dashboard/';
+  if (day) {
+    url += `?day=${encodeURIComponent(day)}`;
+  }
+  return fetchJson(url);
 }
 
 export async function askAiChat(message) {

@@ -90,6 +90,12 @@ def api_student_dashboard(request):
 
     student_profile = request.user.student_profile
 
+    # Get optional filter parameters
+    day_filter = request.GET.get('day', '').strip()
+    valid_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    if day_filter and day_filter not in valid_days:
+        day_filter = ''
+
     # Basic profile info
     student_data = StudentSerializer(student_profile).data
 
@@ -109,7 +115,10 @@ def api_student_dashboard(request):
         })
 
     # Attendance records
-    attendance = Attendance.objects.filter(student=student_profile).select_related('session__course')[:20]
+    attendance = Attendance.objects.filter(student=student_profile).select_related('session__course')
+    if day_filter:
+        attendance = attendance.filter(session__day_of_week=day_filter)
+    attendance = attendance[:20]
     attendance_data = [
         {
             'course_name': a.session.course.course_name,
@@ -123,6 +132,9 @@ def api_student_dashboard(request):
     # Class schedule
     enrolled_course_codes = [e.course.course_code for e in enrolled_courses]
     schedule_qs = ClassSession.objects.filter(course__course_code__in=enrolled_course_codes).select_related('course', 'lecturer__user')
+    if day_filter:
+        schedule_qs = schedule_qs.filter(day_of_week=day_filter)
+    
     schedule_data = [
         {
             'id': s.id,
@@ -171,6 +183,12 @@ def api_lecturer_dashboard(request):
 
     lecturer_profile = request.user.lecturer_profile
 
+    # Get optional filter parameters
+    day_filter = request.GET.get('day', '').strip()
+    valid_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    if day_filter and day_filter not in valid_days:
+        day_filter = ''
+
     # Courses taught (determined by modules assigned to this lecturer)
     courses = Course.objects.filter(modules__in=lecturer_profile.modules.all()).distinct()
     course_data = [
@@ -182,7 +200,11 @@ def api_lecturer_dashboard(request):
     ]
 
     # Upcoming sessions
-    sessions = ClassSession.objects.filter(lecturer=lecturer_profile).select_related('course')[:20]
+    sessions = ClassSession.objects.filter(lecturer=lecturer_profile).select_related('course')
+    if day_filter:
+        sessions = sessions.filter(day_of_week=day_filter)
+    sessions = sessions[:20]
+    
     sessions_data = [
         {
             'id': s.id,
