@@ -815,6 +815,15 @@
                         {# Subjects will be populated by JavaScript #}
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label for="filter-status">Status:</label>
+                    <select id="filter-status" class="form-control">
+                        <option value="">All Statuses</option>
+                        <option value="Present">Present</option>
+                        <option value="Absent">Absent</option>
+                        <option value="Late">Late</option>
+                    </select>
+                </div>
                 <div class="filter-buttons">
                     <button id="apply-filters" class="btn btn-primary flex items-center">
                         <i class="fas fa-filter mr-2"></i> Apply Filters
@@ -1019,6 +1028,7 @@
                 this.navLinks = document.querySelectorAll('.nav-link');
                 this.filterDateInput = document.getElementById('filter-date');
                 this.filterSubjectSelect = document.getElementById('filter-subject');
+                this.filterStatusSelect = document.getElementById('filter-status');
                 this.applyFiltersButton = document.getElementById('apply-filters');
                 this.resetFiltersButton = document.getElementById('reset-filters');
                 this.attendanceTableBody = document.getElementById('attendance-table-body');
@@ -1119,6 +1129,7 @@
                 // Apply filters
                 const filterDate = this.filterDateInput.value;
                 const filterSubject = this.filterSubjectSelect.value;
+                const filterStatus = this.filterStatusSelect.value;
 
                 if (filterDate) {
                     filteredRecords = filteredRecords.filter(record => {
@@ -1131,6 +1142,10 @@
 
                 if (filterSubject) {
                     filteredRecords = filteredRecords.filter(record => record.course_name === filterSubject);
+                }
+
+                if (filterStatus) {
+                    filteredRecords = filteredRecords.filter(record => record.status === filterStatus);
                 }
 
                 if (filteredRecords.length === 0) {
@@ -1160,6 +1175,7 @@
             resetAttendanceFilters() {
                 this.filterDateInput.value = '';
                 this.filterSubjectSelect.value = '';
+                this.filterStatusSelect.value = '';
                 this.renderAttendanceRecords();
             }
 

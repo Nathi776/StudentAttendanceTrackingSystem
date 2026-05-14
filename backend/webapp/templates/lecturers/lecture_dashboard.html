@@ -793,6 +793,15 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="filter-group">
+                <label for="filter-status">Status:</label>
+                <select id="filter-status" class="form-control">
+                    <option value="">All Statuses</option>
+                    <option value="Present">Present</option>
+                    <option value="Absent">Absent</option>
+                    <option value="Late">Late</option>
+                </select>
+            </div>
             <div class="filter-buttons">
                 <button id="apply-filters" class="btn-primary flex items-center">
                     <i data-lucide="filter" class="w-5 h-5 mr-2"></i> Apply Filters
@@ -819,7 +828,7 @@
                     {% if attendance_records %}
  
                         {% for record in attendance_records %}
-                        <tr class="attendance-row" data-date="{{ record.date_only }}" data-subject="{{ record.subjectCode }}">
+                        <tr class="attendance-row" data-date="{{ record.date_only }}" data-subject="{{ record.subjectCode }}" data-status="{{ record.status }}">
                             <td>{{ record.student_firstName }} {{ record.student_lastName }}</td>
                             <td>{{ record.student_studentNumber }}</td>
                             <td>{{ record.subjectCode.subjectName }} ({{ record.subjectCode }})</td>
@@ -918,6 +927,7 @@
              if (sectionId === 'attendance') {
                 document.getElementById('filter-date').value = '';
                 document.getElementById('filter-subject').value = '';
+                document.getElementById('filter-status').value = '';
                 filterAttendanceRecords();  
             }
              if (sectionId === 'class-sessions') {
@@ -950,6 +960,7 @@
         function filterAttendanceRecords() {
             const dateFilter = document.getElementById('filter-date').value;
             const subjectFilter = document.getElementById('filter-subject').value;
+            const statusFilter = document.getElementById('filter-status').value;
             const attendanceRows = document.querySelectorAll('.attendance-row');
 
             let foundRecords = false;  
@@ -957,11 +968,13 @@
             attendanceRows.forEach(row => {
                 const rowDate = row.dataset.date;
                 const rowSubject = row.dataset.subject;
+                const rowStatus = (row.dataset.status || '').trim();
 
                 const dateMatch = !dateFilter || rowDate === dateFilter;
                 const subjectMatch = !subjectFilter || rowSubject === subjectFilter;
+                const statusMatch = !statusFilter || rowStatus === statusFilter;
 
-                if (dateMatch && subjectMatch) {
+                if (dateMatch && subjectMatch && statusMatch) {
                     row.style.display = ''; // Show row
                     foundRecords = true;
                 } else {
