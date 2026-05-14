@@ -245,7 +245,16 @@ def student_dashboard(request):
 
     enrolled_course_ids = [enrollment.course.course_code for enrollment in enrolled_courses_qs]
 
-    class_schedule_qs = ClassSession.objects.filter(course__in=enrolled_course_ids).select_related(
+    # Only include sessions the student is eligible for:
+    # - If a session has a specific module, only include it when the student
+    #   is enrolled in that module for the course.
+    # - If a session has no module, include it when the student is enrolled in the course.
+    student_module_ids = Enrollment.objects.filter(student=student_profile).values_list('modules', flat=True)
+
+    class_schedule_qs = ClassSession.objects.filter(
+        Q(module__isnull=True, course__course_code__in=enrolled_course_ids) |
+        Q(module__in=student_module_ids)
+    ).select_related(
         'course', 'lecturer__user'
     ).order_by('day_of_week', 'start_time')
 
