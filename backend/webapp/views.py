@@ -1065,6 +1065,26 @@ def mark_attendance_api(request):
         session = get_object_or_404(ClassSession, pk=session_id)
         student = request.user.student_profile
 
+        # --- Verify student enrollment for this session's course/module ---
+        if session.module:
+            # If session has a specific module, verify student is enrolled in that module
+            enrollment_exists = Enrollment.objects.filter(
+                student=student,
+                course=session.course,
+                modules=session.module
+            ).exists()
+        else:
+            # If no module specified, just check course enrollment
+            enrollment_exists = Enrollment.objects.filter(
+                student=student,
+                course=session.course
+            ).exists()
+        
+        if not enrollment_exists:
+            return JsonResponse({
+                'error': 'You are not enrolled in the course/module for this session.'
+            }, status=403)
+
         # --- Decode base64 image ---
         if ';base64,' in image_data_b64:
             fmt, imgstr = image_data_b64.split(';base64,')
