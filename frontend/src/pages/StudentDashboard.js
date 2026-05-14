@@ -13,6 +13,17 @@ export default function StudentDashboard() {
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+  const formatDateTime = (isoString) => {
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  };
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -100,7 +111,7 @@ export default function StudentDashboard() {
             {data.attendance_records?.length > 0 ? (
               data.attendance_records.map((record, idx) => (
                 <li key={idx}>
-                  {record.date_time}: {record.course_code} - {record.status}
+                  {formatDateTime(record.date_time)}: {record.course_code} - {record.status}
                 </li>
               ))
             ) : (

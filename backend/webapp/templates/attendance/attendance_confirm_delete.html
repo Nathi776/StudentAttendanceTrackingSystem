@@ -36,7 +36,7 @@
     <ul>
         <li><strong>Student:</strong> {{ attendance.studentNumber }}</li>
         <li><strong>Subject:</strong> {{ attendance.subjectCode }}</li>
-        <li><strong>Date and Time:</strong> {{ attendance.dateAndTime }}</li>
+        <li><strong>Date and Time:</strong> {{ attendance.dateAndTime|date:"Y-m-d H:i:s" }}</li>
     </ul>
     <form method="post">
         {% csrf_token %}

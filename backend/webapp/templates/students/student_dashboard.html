@@ -1157,10 +1157,14 @@
                 filteredRecords.forEach(record => {
                     const row = document.createElement('tr');
                     const statusClass = record.status ? `status-${record.status.toLowerCase()}` : '';
-                    const displayDateTime = new Date(record.date_time).toLocaleString('en-ZA', {
-                        year: 'numeric', month: 'short', day: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                    });
+                    const dateObj = new Date(record.date_time);
+                    const year = dateObj.getFullYear();
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const hours = String(dateObj.getHours()).padStart(2, '0');
+                    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+                    const seconds = String(dateObj.getSeconds()).padStart(2, '0');
+                    const displayDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
                     row.innerHTML = `
                         <td>${record.module_name} (${record.module_code})</td>

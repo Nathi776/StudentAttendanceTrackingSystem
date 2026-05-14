@@ -832,7 +832,7 @@
                             <td>{{ record.student_firstName }} {{ record.student_lastName }}</td>
                             <td>{{ record.student_studentNumber }}</td>
                             <td>{{ record.subjectCode }}</td>
-                           <td>{{ record.dateAndTime }}</td>
+                           <td>{{ record.dateAndTime|date:"Y-m-d H:i:s" }}</td>
                             <td>
                                 <span class="status-badge
                                     {% if record.status == 'Present' %} status-present
