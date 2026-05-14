@@ -115,12 +115,14 @@ def api_student_dashboard(request):
         })
 
     # Attendance records
-    attendance = Attendance.objects.filter(student=student_profile).select_related('session__course')
+    attendance = Attendance.objects.filter(student=student_profile).select_related('session__course', 'session__module')
     if day_filter:
         attendance = attendance.filter(session__day_of_week=day_filter)
     attendance = attendance[:20]
     attendance_data = [
         {
+            'module_name': a.session.module.module_name if a.session.module else a.session.course.course_name,
+            'module_code': a.session.module.module_code if a.session.module else a.session.course.course_code,
             'course_name': a.session.course.course_name,
             'course_code': a.session.course.course_code,
             'date_time': a.date_time.isoformat(),

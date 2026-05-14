@@ -1111,7 +1111,7 @@
             populateSubjectFilter() {
                 this.filterSubjectSelect.innerHTML = '<option value="">All Subjects</option>'; // Clear existing options
                 const uniqueSubjects = new Set();
-                allSubjects.forEach(subject => uniqueSubjects.add(subject.course_name));
+                allAttendanceRecords.forEach(record => uniqueSubjects.add(record.module_name));
 
                 uniqueSubjects.forEach(subjectName => {
                     const option = document.createElement('option');
@@ -1141,7 +1141,7 @@
                 }
 
                 if (filterSubject) {
-                    filteredRecords = filteredRecords.filter(record => record.course_name === filterSubject);
+                    filteredRecords = filteredRecords.filter(record => record.module_name === filterSubject);
                 }
 
                 if (filterStatus) {
@@ -1163,7 +1163,7 @@
                     });
 
                     row.innerHTML = `
-                        <td>${record.course_name} (${record.course_code})</td>
+                        <td>${record.module_name} (${record.module_code})</td>
                         <td>${displayDateTime}</td>
                         <td><span class="status-badge ${statusClass}">${record.status}</span></td>
                         <!-- Removed image_data_url display -->

@@ -222,12 +222,16 @@ def student_dashboard(request):
     attendance_records_qs = Attendance.objects.filter(
         student=student_profile
     ).select_related(
-        'session__course'
+        'session__course', 'session__module'
     ).order_by('-date_time')
 
     attendance_records_data = []
     for record in attendance_records_qs:
+        module_name = record.session.module.module_name if record.session.module else record.session.course.course_name
+        module_code = record.session.module.module_code if record.session.module else record.session.course.course_code
         attendance_records_data.append({
+            'module_name': module_name,
+            'module_code': module_code,
             'course_name': record.session.course.course_name,
             'course_code': record.session.course.course_code,
             'date_time': record.date_time.isoformat(),
@@ -430,17 +434,18 @@ def lecturer_dashboard(request):
 
     attendance_records_qs = Attendance.objects.filter(
         session__in=lecturer_sessions_qs # sessions are filtered by lecturer in the first query
-    ).select_related('student__user', 'session__course').order_by('-date_time')
+    ).select_related('student__user', 'session__course', 'session__module').order_by('-date_time')
 
     attendance_records_data = []
     for record in attendance_records_qs:
+        module_code = record.session.module.module_code if record.session.module else record.session.course.course_code
         attendance_records_data.append({
             'id': record.student.user.id,
             'student_firstName': record.student.user.first_name,
             'student_lastName': record.student.user.last_name,
             'student_studentNumber': record.student.user.username,
             'subjectName': record.session.course.course_name,
-            'subjectCode': record.session.course.course_code,
+            'subjectCode': module_code,
             'dateAndTime': record.date_time.isoformat(),
             'date_only': record.date_time.date().isoformat(),
             'status': record.status,
