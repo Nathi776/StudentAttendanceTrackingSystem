@@ -819,7 +819,7 @@
                     {% if attendance_records %}
  
                         {% for record in attendance_records %}
-                        <tr class="attendance-row" data-date="{{ record.dateAndTime|date:'Y-m-d' }}" data-subject="{{ record.subjectCode }}">
+                        <tr class="attendance-row" data-date="{{ record.date_only }}" data-subject="{{ record.subjectCode }}">
                             <td>{{ record.student_firstName }} {{ record.student_lastName }}</td>
                             <td>{{ record.student_studentNumber }}</td>
                             <td>{{ record.subjectCode.subjectName }} ({{ record.subjectCode }})</td>

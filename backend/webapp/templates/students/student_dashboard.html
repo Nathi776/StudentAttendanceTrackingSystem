@@ -1122,7 +1122,9 @@
 
                 if (filterDate) {
                     filteredRecords = filteredRecords.filter(record => {
-                        const recordDate = new Date(record.date_time).toISOString().split('T')[0];
+                        // Parse date without timezone conversion issues
+                        // Extract the date part directly from ISO string (YYYY-MM-DD)
+                        const recordDate = record.date_time.split('T')[0];
                         return recordDate === filterDate;
                     });
                 }

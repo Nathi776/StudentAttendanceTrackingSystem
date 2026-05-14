@@ -231,6 +231,7 @@ def student_dashboard(request):
             'course_name': record.session.course.course_name,
             'course_code': record.session.course.course_code,
             'date_time': record.date_time.isoformat(),
+            'date_only': record.date_time.date().isoformat(),
             'status': record.status,
             'image_data_url': record.image_data.url if record.image_data else None,
             'session_id': record.session.id,
@@ -441,6 +442,7 @@ def lecturer_dashboard(request):
             'subjectName': record.session.course.course_name,
             'subjectCode': record.session.course.course_code,
             'dateAndTime': record.date_time.isoformat(),
+            'date_only': record.date_time.date().isoformat(),
             'status': record.status,
             'image_data_url': record.image_data.url if record.image_data else None,
         })
