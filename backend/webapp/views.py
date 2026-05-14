@@ -439,6 +439,7 @@ def lecturer_dashboard(request):
     attendance_records_data = []
     for record in attendance_records_qs:
         module_code = record.session.module.module_code if record.session.module else record.session.course.course_code
+        formatted_datetime = record.date_time.strftime('%Y-%m-%d %H:%M:%S')
         attendance_records_data.append({
             'id': record.student.user.id,
             'student_firstName': record.student.user.first_name,
@@ -446,7 +447,7 @@ def lecturer_dashboard(request):
             'student_studentNumber': record.student.user.username,
             'subjectName': record.session.course.course_name,
             'subjectCode': module_code,
-            'dateAndTime': record.date_time.isoformat(),
+            'dateAndTime': formatted_datetime,
             'date_only': record.date_time.date().isoformat(),
             'status': record.status,
             'image_data_url': record.image_data.url if record.image_data else None,

@@ -499,6 +499,28 @@
         .custom-table tbody tr:hover {
             background-color: #fbfcfe; /* Subtle hover effect */
         }
+        .custom-table tbody td:nth-child(1) { width: 20%; }
+        .custom-table tbody td:nth-child(2) { width: 15%; }
+        .custom-table tbody td:nth-child(3) { width: 15%; }
+        .custom-table tbody td:nth-child(4) { width: 25%; word-wrap: break-word; }
+        .custom-table tbody td:nth-child(5) { width: 15%; }
+        
+        .custom-table tbody td:nth-child(4) {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #2c3e50 !important;
+            font-size: 1rem !important;
+            font-weight: 500;
+            background-color: rgba(255, 255, 255, 0.95);
+        }
+        
+        .custom-table thead th:nth-child(1) { width: 20%; }
+        .custom-table thead th:nth-child(2) { width: 15%; }
+        .custom-table thead th:nth-child(3) { width: 15%; }
+        .custom-table thead th:nth-child(4) { width: 25%; }
+        .custom-table thead th:nth-child(5) { width: 15%; }
+        }
         .status-badge {
             display: inline-flex;
             align-items: center;
@@ -832,7 +854,7 @@
                             <td>{{ record.student_firstName }} {{ record.student_lastName }}</td>
                             <td>{{ record.student_studentNumber }}</td>
                             <td>{{ record.subjectCode }}</td>
-                           <td>{{ record.dateAndTime|date:"Y-m-d H:i:s" }}</td>
+                           <td>{{ record.dateAndTime }}</td>
                             <td>
                                 <span class="status-badge
                                     {% if record.status == 'Present' %} status-present
