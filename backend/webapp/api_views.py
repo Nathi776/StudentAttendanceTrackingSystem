@@ -220,10 +220,33 @@ def api_lecturer_dashboard(request):
         for s in sessions
     ]
 
+    attendance_records = Attendance.objects.filter(
+        session__lecturer=lecturer_profile
+    ).select_related(
+        'student__user', 'session__course', 'session__module'
+    ).order_by('-date_time')[:20]
+
+    attendance_data = [
+        {
+            'id': record.id,
+            'student_first_name': record.student.user.first_name,
+            'student_last_name': record.student.user.last_name,
+            'student_number': record.student.user.username,
+            'course_code': record.session.course.course_code,
+            'course_name': record.session.course.course_name,
+            'module_code': record.session.module.module_code if record.session.module else record.session.course.course_code,
+            'date_time': record.date_time.isoformat(),
+            'status': record.status,
+            'session_id': record.session.id,
+        }
+        for record in attendance_records
+    ]
+
     return api_success(
         {
             'lecturer': LecturerSerializer(lecturer_profile).data,
             'courses': course_data,
             'sessions': sessions_data,
+            'attendance_records': attendance_data,
         }
     )

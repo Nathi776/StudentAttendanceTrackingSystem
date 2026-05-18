@@ -2,6 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { getLecturerDashboard } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
+function formatDateTime(isoString) {
+  const date = new Date(isoString);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
 export default function LecturerDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,6 +22,8 @@ export default function LecturerDashboard() {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   useEffect(() => {
+    let intervalId;
+
     async function load() {
       setLoading(true);
       try {
@@ -25,6 +37,11 @@ export default function LecturerDashboard() {
     }
 
     load();
+    intervalId = window.setInterval(load, 30000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, [selectedDay]);
 
   const handleDayFilter = (e) => {
@@ -89,6 +106,19 @@ export default function LecturerDashboard() {
               ))
             ) : (
               <li>No sessions scheduled {selectedDay ? `for ${selectedDay}` : ''}</li>
+            )}
+          </ul>
+
+          <h3>Recent Attendance</h3>
+          <ul>
+            {data.attendance_records?.length > 0 ? (
+              data.attendance_records.map((record) => (
+                <li key={record.id}>
+                  {formatDateTime(record.date_time)}: {record.student_first_name} {record.student_last_name} - {record.course_code} - {record.status}
+                </li>
+              ))
+            ) : (
+              <li>No attendance records yet</li>
             )}
           </ul>
         </section>

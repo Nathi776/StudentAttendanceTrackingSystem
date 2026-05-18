@@ -1,4 +1,4 @@
-// const PRIMARY_API = 'https://wonderful-generosity-production.up.railway.app'; studentattendancetrackingsystem-production-6440.up.railway.app
+// const PRIMARY_API = 'https://studentattendancetrackingsystem-production-7589.up.railway.app';
 const DEFAULT_API_BASE =
   typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
     ? 'http://localhost:8000'
