@@ -1430,7 +1430,9 @@
                     }
 
                     const errMsg = (data.error || data.status || "Attendance failed").toString();
-                    const isNoFaceDetected = errMsg.toLowerCase().includes("no face");
+                    const errorText = errMsg.toLowerCase();
+                    const isNoFaceDetected = errorText.includes("no face");
+                    const isMultipleFaces = errorText.includes("multiple faces");
 
                     // retry once if "No face detected"
                     if (isNoFaceDetected && retryCount < 1) {
@@ -1456,6 +1458,11 @@
                                 }
                             }
                         });
+                        return;
+                    }
+
+                    if (isMultipleFaces) {
+                        showAlert("Attendance Failed", "Multiple faces were detected. Please make sure only one person is visible in the camera and try again.", "danger");
                         return;
                     }
 
@@ -1528,7 +1535,12 @@
                         const cameraModalInstance = bootstrap.Modal.getInstance(this.cameraAttendanceModalElement);
                         if (cameraModalInstance) cameraModalInstance.hide();
 
-                        showAlert("Attendance Failed", data.error || "An error occurred while marking attendance.", "danger");
+                        const errorText = (data.error || "An error occurred while marking attendance.").toString().toLowerCase();
+                        if (errorText.includes("multiple faces")) {
+                            showAlert("Attendance Failed", "Multiple faces were detected. Please make sure only one person is visible in the camera and try again.", "danger");
+                        } else {
+                            showAlert("Attendance Failed", data.error || "An error occurred while marking attendance.", "danger");
+                        }
                     }
                 } catch (error) {
                     console.error('Error marking attendance:', error);
