@@ -702,6 +702,110 @@ def _get_next_session(sessions):
     return upcoming_sessions[0] if upcoming_sessions else None
 
 
+EXAM_ATTENDANCE_THRESHOLD = 80.0
+
+
+def _student_exam_module_rows(student_profile, course_ids=None):
+    enrollments = Enrollment.objects.filter(student=student_profile).select_related('course').prefetch_related('modules')
+    if course_ids is not None:
+        enrollments = enrollments.filter(course_id__in=course_ids)
+
+    module_rows = []
+    for enrollment in enrollments:
+        modules = list(enrollment.modules.all())
+        if not modules:
+            modules = list(enrollment.course.modules.all())
+
+        if modules:
+            for module in modules:
+                sessions_qs = ClassSession.objects.filter(course=enrollment.course).filter(
+                    Q(module=module) | Q(module__isnull=True)
+                )
+                total_sessions = sessions_qs.count()
+                if total_sessions == 0:
+                    continue
+
+                attended_sessions = Attendance.objects.filter(
+                    student=student_profile,
+                    session__in=sessions_qs,
+                    status__in=['Present', 'Late'],
+                ).count()
+
+                attendance_rate = (attended_sessions / total_sessions) * 100 if total_sessions else 0
+                module_rows.append({
+                    'course_code': enrollment.course.course_code,
+                    'course_name': enrollment.course.course_name,
+                    'module_code': module.module_code,
+                    'module_name': module.module_name,
+                    'attended_sessions': attended_sessions,
+                    'total_sessions': total_sessions,
+                    'attendance_rate': attendance_rate,
+                    'qualifies': attendance_rate >= EXAM_ATTENDANCE_THRESHOLD,
+                })
+        else:
+            sessions_qs = ClassSession.objects.filter(course=enrollment.course, module__isnull=True)
+            total_sessions = sessions_qs.count()
+            if total_sessions == 0:
+                continue
+
+            attended_sessions = Attendance.objects.filter(
+                student=student_profile,
+                session__in=sessions_qs,
+                status__in=['Present', 'Late'],
+            ).count()
+
+            attendance_rate = (attended_sessions / total_sessions) * 100 if total_sessions else 0
+            module_rows.append({
+                'course_code': enrollment.course.course_code,
+                'course_name': enrollment.course.course_name,
+                'module_code': enrollment.course.course_code,
+                'module_name': enrollment.course.course_name,
+                'attended_sessions': attended_sessions,
+                'total_sessions': total_sessions,
+                'attendance_rate': attendance_rate,
+                'qualifies': attendance_rate >= EXAM_ATTENDANCE_THRESHOLD,
+            })
+
+    return module_rows
+
+
+def _student_attendance_summary(student_profile):
+    attendance_qs = Attendance.objects.filter(student=student_profile)
+    total_sessions = attendance_qs.count()
+    present_count = attendance_qs.filter(status='Present').count()
+    late_count = attendance_qs.filter(status='Late').count()
+    absent_count = attendance_qs.filter(status='Absent').count()
+    attended_count = present_count + late_count
+    attendance_rate = (attended_count / total_sessions) * 100 if total_sessions else 0
+
+    return {
+        'total_sessions': total_sessions,
+        'present_count': present_count,
+        'late_count': late_count,
+        'absent_count': absent_count,
+        'attended_count': attended_count,
+        'attendance_rate': attendance_rate,
+    }
+
+
+def _lecturer_qualified_student_count(lecturer_profile):
+    taught_courses = Course.objects.filter(modules__in=lecturer_profile.modules.all()).distinct()
+    taught_course_ids = list(taught_courses.values_list('course_code', flat=True))
+
+    qualified_students = []
+    students = Student.objects.filter(enrollments__course__course_code__in=taught_course_ids).distinct()
+    for student in students:
+        module_rows = _student_exam_module_rows(student, course_ids=taught_course_ids)
+        if any(row['qualifies'] for row in module_rows):
+            qualified_students.append(student)
+
+    return {
+        'qualified_student_count': len(qualified_students),
+        'qualified_students': qualified_students,
+        'taught_courses': taught_courses,
+    }
+
+
 def ai_chat(request):
     """Simple AI helper endpoint for UI chat widget.
 
@@ -718,11 +822,55 @@ def ai_chat(request):
         return JsonResponse({'reply': 'Please type a question or message so I can assist you.'})
 
     lower = message.lower()
+    user = request.user if request.user.is_authenticated else None
+    is_student_user = bool(user and hasattr(user, 'student_profile'))
+    is_lecturer_user = bool(user and hasattr(user, 'lecturer_profile'))
 
-    if not request.user.is_authenticated or not hasattr(request.user, 'student_profile'):
+    if not request.user.is_authenticated:
         if 'login' in lower or 'sign in' in lower:
             return JsonResponse({'reply': 'Use your student number and password to log in. If you forgot your password, use the login page reset option.'})
-        return JsonResponse({'reply': 'Please log in as a student so I can answer personal questions like your next session, attendance, courses, and lecturers.'})
+        return JsonResponse({'reply': 'Please log in so I can answer personal questions about attendance and exam eligibility.'})
+
+    if is_lecturer_user:
+        lecturer_profile = request.user.lecturer_profile
+        attended_triggers = ('how many times was i absent', 'how many times was i present', 'how many times was i late', 'attendance summary', 'attendance counts')
+        lecturer_exam_triggers = (
+            'how many student qualify for exam',
+            'how many students qualify for exam',
+            'students qualify for exam',
+            'student qualify for exam',
+            'who qualifies for exam',
+            'qualify for exam',
+        )
+
+        if any(trigger in lower for trigger in lecturer_exam_triggers):
+            result = _lecturer_qualified_student_count(lecturer_profile)
+            count = result['qualified_student_count']
+            course_count = result['taught_courses'].count()
+            if count == 0:
+                reply = (
+                    f'No students currently qualify for exam across the {course_count} course(s) you teach. '
+                    f'A student must reach at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance.'
+                )
+            else:
+                reply = (
+                    f'{count} student(s) currently qualify for exam across your taught courses. '
+                    f'The qualification rule is at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance.'
+                )
+            return JsonResponse({'reply': reply})
+
+        if any(trigger in lower for trigger in attended_triggers):
+            reply = 'Attendance totals are student-specific. Ask me which student or ask how many students qualify for exam.'
+            return JsonResponse({'reply': reply})
+
+        if 'attendance' in lower:
+            reply = 'You can ask how many students qualify for exam, or ask attendance-related questions about a specific student.'
+        else:
+            reply = 'I can answer questions about your taught courses, exam eligibility, and student qualification counts.'
+        return JsonResponse({'reply': reply})
+
+    if not is_student_user:
+        return JsonResponse({'reply': 'Please log in as a student or lecturer so I can answer attendance and exam-eligibility questions.'})
 
     student_profile = request.user.student_profile
     enrolled_courses_qs = Enrollment.objects.filter(student=student_profile).select_related('course').order_by('course__course_code')
@@ -730,9 +878,20 @@ def ai_chat(request):
     enrolled_course_codes = [course.course_code for course in enrolled_courses]
 
     next_session_triggers = ('next session', 'next class', 'upcoming session', 'coming session')
-    attendance_triggers = ('attendance percentage', 'attendance percent', 'attendance rate', 'my attendance')
+    attendance_triggers = ('attendance percentage', 'attendance percent', 'attendance rate', 'my attendance', 'how many times was i absent', 'how many times was i present', 'how many times was i late', 'attendance summary', 'attendance counts')
     enrolled_courses_triggers = ('enrolled courses', 'my courses', 'my subjects', 'what courses am i in', 'what subjects am i in')
     lecturer_triggers = ('lecturer for', 'who teaches', 'who is teaching', 'course lecturer', 'my lecturer')
+    exam_triggers = ('how many module', 'how many modules', 'qualify to write for exam', 'qualify for exam', 'exam eligibility')
+    lecturer_only_exam_triggers = (
+        'how many student qualify for exam',
+        'how many students qualify for exam',
+        'student qualify for exam',
+        'students qualify for exam',
+    )
+
+    if any(trigger in lower for trigger in lecturer_only_exam_triggers):
+        reply = 'Only lecturers can ask how many students qualify for exam.'
+        return JsonResponse({'reply': reply})
 
     if any(trigger in lower for trigger in next_session_triggers):
         schedule_qs = ClassSession.objects.filter(course__in=enrolled_courses).select_related('course', 'lecturer__user')
@@ -748,16 +907,32 @@ def ai_chat(request):
             reply = 'I could not find any upcoming sessions for your enrolled courses.'
     elif any(trigger in lower for trigger in attendance_triggers):
         _backfill_missed_attendance(student_profile)
-        attendance_qs = Attendance.objects.filter(student=student_profile)
-        total_sessions = attendance_qs.count()
-        attended_sessions = attendance_qs.filter(status__in=['Present', 'Late']).count()
-        if total_sessions == 0:
+        summary = _student_attendance_summary(student_profile)
+        if summary['total_sessions'] == 0:
             reply = 'You do not have any attendance records yet.'
         else:
-            percentage = (attended_sessions / total_sessions) * 100
+            percentage = summary['attendance_rate']
             reply = (
-                f"Your attendance is {percentage:.1f}% based on {attended_sessions} attended "
-                f"sessions out of {total_sessions} recorded sessions."
+                f"You have {summary['present_count']} Present, {summary['late_count']} Late, and {summary['absent_count']} Absent records. "
+                f"That is {percentage:.1f}% attendance across {summary['total_sessions']} recorded sessions. "
+                f"You need at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance to qualify for exams."
+            )
+    elif any(trigger in lower for trigger in exam_triggers):
+        _backfill_missed_attendance(student_profile)
+        module_rows = _student_exam_module_rows(student_profile)
+        qualifying_rows = [row for row in module_rows if row['qualifies']]
+        if not module_rows:
+            reply = 'I could not find enough attendance records to calculate exam eligibility yet.'
+        elif not qualifying_rows:
+            reply = (
+                f'You currently qualify for exam in 0 module(s). '
+                f'A student must reach at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance in a module to qualify.'
+            )
+        else:
+            module_list = ', '.join(f"{row['module_code']} ({row['attendance_rate']:.1f}%)" for row in qualifying_rows)
+            reply = (
+                f'You currently qualify for exam in {len(qualifying_rows)} module(s): {module_list}. '
+                f'The qualification rule is at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance.'
             )
     elif any(trigger in lower for trigger in enrolled_courses_triggers):
         if enrolled_course_codes:
@@ -784,13 +959,13 @@ def ai_chat(request):
         else:
             reply = 'Please mention the course code or course name so I can find the lecturer for you.'
     elif 'attendance' in lower:
-        reply = 'You can ask: what is my attendance percentage?'
+        reply = 'You can ask: how many times was I present, late, or absent, and how many modules do I qualify for exam?'
     elif 'course' in lower or 'module' in lower or 'class' in lower:
         reply = 'You can ask about your next session, enrolled courses, or the lecturer for a specific course.'
     elif 'hello' in lower or 'hi' in lower:
-        reply = f"Hello {request.user.first_name}! Ask me about your next session, attendance percentage, enrolled courses, or lecturer."
+        reply = f"Hello {request.user.first_name}! Ask me about your next session, attendance counts, exam eligibility, enrolled courses, or lecturer."
     else:
-        reply = 'I can answer student-specific questions about your next session, attendance percentage, enrolled courses, and lecturers.'
+        reply = 'I can answer student-specific questions about your next session, attendance counts, exam eligibility, enrolled courses, and lecturers.'
 
     return JsonResponse({'reply': reply})
 
