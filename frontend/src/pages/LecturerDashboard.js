@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getLecturerDashboard } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import AIChatBox from '../components/AIChatBox';
 
 function formatDateTime(isoString) {
   const date = new Date(isoString);
@@ -122,6 +123,10 @@ export default function LecturerDashboard() {
             )}
           </ul>
         </section>
+      )}
+
+      {user?.user_type === 'Lecturer' && (
+        <AIChatBox />
       )}
     </div>
   );

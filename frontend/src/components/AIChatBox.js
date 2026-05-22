@@ -1,23 +1,27 @@
 import React, { useMemo, useState } from 'react';
 import { askAiChat } from '../services/api';
 
-export default function AIChatBox() {
+export default function AIChatBox({
+  title = 'EduTrack Assistant',
+  welcomeMessage = 'Hi, I am your EduTrack assistant. Ask me about attendance counts, exam eligibility, enrolled courses, or lecturers.',
+  quickPrompts = [
+    'What is my next session?',
+    'How many times was I absent?',
+    'How many times was I present?',
+    'How many times was I late?',
+    'How many modules do I qualify for exam?',
+    'What courses am I enrolled in?',
+  ],
+}) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      text: 'Hi, I am your EduTrack assistant. Ask me about your next session, attendance percentage, enrolled courses, or lecturer.',
+      text: welcomeMessage,
     },
   ]);
-
-  const quickPrompts = [
-    'What is my next session?',
-    'What is my attendance percentage?',
-    'What courses am I enrolled in?',
-    'Who is my lecturer for CSC 201?',
-  ];
 
   const canSend = useMemo(() => input.trim().length > 0 && !sending, [input, sending]);
 
@@ -95,7 +99,7 @@ export default function AIChatBox() {
               fontWeight: 700,
             }}
           >
-            <span>EduTrack Assistant</span>
+            <span>{title}</span>
             <button
               type="button"
               onClick={() => setOpen(false)}
