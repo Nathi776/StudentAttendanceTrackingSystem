@@ -138,6 +138,7 @@ export default function AIChatBox({
                   padding: '0.55rem 0.7rem',
                   maxWidth: '88%',
                   fontSize: '0.92rem',
+                  whiteSpace: 'pre-wrap',
                 }}
               >
                 {msg.text}

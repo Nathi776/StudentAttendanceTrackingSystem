@@ -660,6 +660,21 @@ WEEKDAY_INDEX = {
     'sunday': 6,
 }
 
+MONTH_INDEX = {
+    'jan': 1,
+    'feb': 2,
+    'mar': 3,
+    'apr': 4,
+    'may': 5,
+    'jun': 6,
+    'jul': 7,
+    'aug': 8,
+    'sep': 9,
+    'oct': 10,
+    'nov': 11,
+    'dec': 12,
+}
+
 
 def _format_course_list(courses):
     return ', '.join(courses) if courses else 'none'
@@ -684,6 +699,68 @@ def _extract_course_from_message(message, enrolled_courses):
                 return course
 
     return None
+
+
+def _parse_attendance_date(message):
+    lower_message = message.lower()
+    current_year = timezone.localdate().year
+    patterns = (
+        r'\b(?:on\s+)?(?P<day>\d{1,2})(?:st|nd|rd|th)?\s+(?P<month>[a-z]+)(?:\s+(?P<year>\d{4}))?\b',
+        r'\b(?:on\s+)?(?P<month>[a-z]+)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?(?:\s+(?P<year>\d{4}))?\b',
+    )
+
+    for pattern in patterns:
+        match = re.search(pattern, lower_message)
+        if not match:
+            continue
+
+        month_name = (match.group('month') or '')[:3]
+        month = MONTH_INDEX.get(month_name)
+        if not month:
+            continue
+
+        day = int(match.group('day'))
+        year = int(match.group('year') or current_year)
+
+        try:
+            return datetime(year, month, day).date()
+        except ValueError:
+            return None
+
+    return None
+
+
+def _lecturer_most_absent_students(lecturer_profile, limit=10):
+    absent_rows = (
+        Attendance.objects.filter(session__lecturer=lecturer_profile, status='Absent')
+        .values('student__user__first_name', 'student__user__last_name', 'student__user__username')
+        .annotate(absent_count=Count('id'))
+        .order_by('-absent_count', 'student__user__first_name', 'student__user__last_name')[:limit]
+    )
+
+    if not absent_rows:
+        return 'I could not find any absent records for your students yet.'
+
+    lines = []
+    for row in absent_rows:
+        first_name = (row.get('student__user__first_name') or '').strip()
+        last_name = (row.get('student__user__last_name') or '').strip()
+        username = (row.get('student__user__username') or '').strip()
+        full_name = f'{first_name} {last_name}'.strip() or username or 'Unknown student'
+        lines.append(f'{full_name} - absent {row["absent_count"]} times')
+
+    return 'Students with the most absent records:\n' + '\n'.join(lines)
+
+
+def _student_presence_on_date(student_profile, target_date):
+    attendance_qs = Attendance.objects.filter(student=student_profile, date_time__date=target_date)
+    statuses = list(attendance_qs.values_list('status', flat=True))
+
+    if 'Present' in statuses:
+        return 'Yes'
+    if 'Late' in statuses:
+        return 'Yes, but you were marked as Late'
+    return 'No'
 
 
 def _get_next_session(sessions):
@@ -833,6 +910,14 @@ def ai_chat(request):
 
     if is_lecturer_user:
         lecturer_profile = request.user.lecturer_profile
+        absent_rank_triggers = (
+            'most absent records',
+            'students with the most absent',
+            'student with the most absent',
+            'most absent students',
+            'who is absent the most',
+            'who has the most absences',
+        )
         attended_triggers = ('how many times was i absent', 'how many times was i present', 'how many times was i late', 'attendance summary', 'attendance counts')
         lecturer_exam_triggers = (
             'how many student qualify for exam',
@@ -842,6 +927,10 @@ def ai_chat(request):
             'who qualifies for exam',
             'qualify for exam',
         )
+
+        if any(trigger in lower for trigger in absent_rank_triggers):
+            reply = _lecturer_most_absent_students(lecturer_profile)
+            return JsonResponse({'reply': reply})
 
         if any(trigger in lower for trigger in lecturer_exam_triggers):
             result = _lecturer_qualified_student_count(lecturer_profile)
@@ -876,6 +965,11 @@ def ai_chat(request):
     enrolled_courses_qs = Enrollment.objects.filter(student=student_profile).select_related('course').order_by('course__course_code')
     enrolled_courses = [enrollment.course for enrollment in enrolled_courses_qs]
     enrolled_course_codes = [course.course_code for course in enrolled_courses]
+
+    attendance_date = _parse_attendance_date(message)
+    if attendance_date and 'was i present' in lower:
+        reply = _student_presence_on_date(student_profile, attendance_date)
+        return JsonResponse({'reply': reply})
 
     next_session_triggers = ('next session', 'next class', 'upcoming session', 'coming session')
     attendance_triggers = ('attendance percentage', 'attendance percent', 'attendance rate', 'my attendance', 'how many times was i absent', 'how many times was i present', 'how many times was i late', 'attendance summary', 'attendance counts')
