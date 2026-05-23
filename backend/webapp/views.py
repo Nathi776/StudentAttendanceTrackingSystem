@@ -938,12 +938,12 @@ def ai_chat(request):
             course_count = result['taught_courses'].count()
             if count == 0:
                 reply = (
-                    f'No students currently qualify for exam across the {course_count} course(s) you teach. '
+                    f'No students currently qualify for exam across the {course_count} module(s) you teach. '
                     f'A student must reach at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance.'
                 )
             else:
                 reply = (
-                    f'{count} student(s) currently qualify for exam across your taught courses. '
+                    f'{count} student(s) currently qualify for exam across your taught modules. '
                     f'The qualification rule is at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance.'
                 )
             return JsonResponse({'reply': reply})
@@ -955,7 +955,7 @@ def ai_chat(request):
         if 'attendance' in lower:
             reply = 'You can ask how many students qualify for exam, or ask attendance-related questions about a specific student.'
         else:
-            reply = 'I can answer questions about your taught courses, exam eligibility, and student qualification counts.'
+            reply = 'I can answer questions about your taught modules, exam eligibility, and student qualification counts.'
         return JsonResponse({'reply': reply})
 
     if not is_student_user:

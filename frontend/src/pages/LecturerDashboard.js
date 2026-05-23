@@ -88,7 +88,7 @@ export default function LecturerDashboard() {
             </select>
           </div>
 
-          <h3>Courses</h3>
+          <h3>Modules</h3>
           <ul>
             {data.courses?.map((course) => (
               <li key={course.course_code}>

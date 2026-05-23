@@ -766,7 +766,7 @@
                 <div class="list-item-title">{{ student.firstName }} {{ student.lastName }}</div>
                 <div class="list-item-meta">Student Number: {{ student.studentNumber }}</div>
                 <div class="student-courses mt-2">
-                    <strong>Enrolled Courses:</strong>
+                    <strong>Enrolled Modules:</strong>
                     {% if student.enrolled_courses %}
                     <ul>
                         {% for course in student.enrolled_courses|slice:":2" %}
@@ -777,7 +777,7 @@
                         {% endif %}
                     </ul>
                     {% else %}
-                    <p class="text-xs text-gray-500">No courses listed.</p>
+                    <p class="text-xs text-gray-500">No modules listed.</p>
                     {% endif %}
                 </div>
                    <!-- <div class="mt-3">
@@ -788,8 +788,8 @@
         </div>
         {% else %}
         <div class="card">
-            <div class="card-content">
-                <p class="text-center text-gray-500 py-8">No students are currently enrolled in your courses.</p>
+                <div class="card-content">
+            <p class="text-center text-gray-500 py-8">No students are currently enrolled in your modules.</p>
             </div>
         </div>
         {% endif %}
@@ -892,12 +892,12 @@
         </div>
     </div>
 
-    {#  (unique courses taught by the lecturer) --- #}
+    {#  (unique modules taught by the lecturer) --- #}
     {% if courses %}  
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for course in courses %}
             <div class="list-item class-session-item card !p-4">
-                {# Display the Course Name and Code #}
+                {# Display the Module Name and Code #}
                 <div class="list-item-title">{{ course.subjectName }} ({{ course.subjectCode }})</div>
  
                 <div class="mt-3 flex gap-2">
@@ -912,7 +912,7 @@
     {% else %}
     <div class="card">
         <div class="card-content">
-            <p class="text-center text-gray-500 py-8">You are not assigned to any courses yet.</p>
+            <p class="text-center text-gray-500 py-8">You are not assigned to any modules yet.</p>
         </div>
     </div>
     {% endif %}
