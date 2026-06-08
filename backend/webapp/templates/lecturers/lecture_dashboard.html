@@ -807,11 +807,11 @@
                 <input type="date" id="filter-date" class="form-control">
             </div>
             <div class="filter-group">
-                <label for="filter-subject">Subject:</label>
+                <label for="filter-subject">Module:</label>
                 <select id="filter-subject" class="form-control">
-                    <option value="">All Subjects</option>
-                    {% for course in courses %}
-                        <option value="{{ course.subjectCode }}">{{ course.subjectName }} ({{ course.subjectCode }})</option>
+                    <option value="">All Modules</option>
+                    {% for module in lecturer_modules %}
+                        <option value="{{ module.module_code }}">{{ module.module_name }} ({{ module.module_code }})</option>
                     {% endfor %}
                 </select>
             </div>

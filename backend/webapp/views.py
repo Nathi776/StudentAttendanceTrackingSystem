@@ -407,6 +407,7 @@ def lecturer_dashboard(request):
     # --- Fetch unique courses taught by the lecturer  
     # Courses are considered "taught" if they contain modules assigned to this lecturer.
     courses_taught_qs = Course.objects.filter(modules__in=lecturer_profile.modules.all()).distinct().order_by('course_code')
+    lecturer_modules_qs = lecturer_profile.modules.all().order_by('module_code')
 
     courses_for_dashboard_cards = []  
     for course in courses_taught_qs:
@@ -466,6 +467,7 @@ def lecturer_dashboard(request):
     context = {
         'lecturer': lecturer_context_data,
         'courses': courses_for_dashboard_cards, # This is the list of unique courses for the cards!
+        'lecturer_modules': lecturer_modules_qs,
         'enrolled_students': enrolled_students_data,
         'attendance_records': attendance_records_data,
         'upcoming_session': upcoming_session, # This is the single upcoming session
