@@ -767,13 +767,13 @@
                 <div class="list-item-meta">Student Number: {{ student.studentNumber }}</div>
                 <div class="student-courses mt-2">
                     <strong>Enrolled Modules:</strong>
-                    {% if student.enrolled_courses %}
+                    {% if student.enrolled_modules %}
                     <ul>
-                        {% for course in student.enrolled_courses|slice:":2" %}
-                        <li>{{ course.subjectName }} ({{ course.subjectCode }})</li>
+                        {% for module in student.enrolled_modules|slice:":2" %}
+                        <li>{{ module.moduleName }} ({{ module.moduleCode }})</li>
                         {% endfor %}
-                        {% if student.enrolled_courses|length > 2 %}
-                        <li>... and {{ student.enrolled_courses|length|add:"-2" }} more.</li>
+                        {% if student.enrolled_modules|length > 2 %}
+                        <li>... and {{ student.enrolled_modules|length|add:"-2" }} more.</li>
                         {% endif %}
                     </ul>
                     {% else %}

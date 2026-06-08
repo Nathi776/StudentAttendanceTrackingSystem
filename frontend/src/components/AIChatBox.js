@@ -1,6 +1,25 @@
 import React, { useMemo, useState } from 'react';
 import { askAiChat } from '../services/api';
 
+function renderMessageContent(text) {
+  const lines = String(text || '').split('\n').filter((line) => line.length > 0);
+
+  if (lines.length <= 1) {
+    return text;
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      {lines.map((line, index) => (
+        <div key={`${index}-${line}`} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <span style={{ color: 'inherit', opacity: 0.75, minWidth: 10 }}>•</span>
+          <span>{line}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AIChatBox({
   title = 'EduTrack Assistant',
   welcomeMessage = 'Hi, I am your EduTrack assistant. Ask me about attendance counts, exam eligibility, enrolled courses, or lecturers.',
@@ -141,7 +160,7 @@ export default function AIChatBox({
                   whiteSpace: 'pre-wrap',
                 }}
               >
-                {msg.text}
+                {renderMessageContent(msg.text)}
               </div>
             ))}
             {sending && (

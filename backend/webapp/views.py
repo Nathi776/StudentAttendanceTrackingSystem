@@ -427,20 +427,30 @@ def lecturer_dashboard(request):
     ).order_by('user__last_name', 'user__first_name')
 
     enrolled_students_data = []
+    lecturer_module_codes = {module.module_code for module in lecturer_profile.modules.all()}
     for student in enrolled_students_qs:
-        student_courses_list = []
+        student_modules_list = []
+        seen_module_codes = set()
         for enrollment in student.lecturer_related_enrollments:
-            student_courses_list.append({
-                'subjectName': enrollment.course.course_name,
-                'subjectCode': enrollment.course.course_code
-            })
+            modules = list(enrollment.modules.all()) or list(enrollment.course.modules.all())
+            for module in modules:
+                if module.module_code not in lecturer_module_codes:
+                    continue
+                if module.module_code in seen_module_codes:
+                    continue
+                seen_module_codes.add(module.module_code)
+                student_modules_list.append({
+                    'moduleName': module.module_name,
+                    'moduleCode': module.module_code,
+                })
         enrolled_students_data.append({
             'firstName': student.user.first_name,
             'lastName': student.user.last_name,
             'studentNumber': student.user.username,
             'email': student.user.email,
             'program': student.program,
-            'enrolled_courses': student_courses_list
+            'enrolled_modules': student_modules_list,
+            'enrolled_courses': student_modules_list,
         })
 
     attendance_records_qs = Attendance.objects.filter(
@@ -705,6 +715,226 @@ def _extract_course_from_message(message, enrolled_courses):
     return None
 
 
+def _extract_module_from_message(message, modules):
+    lower_message = message.lower()
+    message_tokens = set(re.findall(r'[a-z0-9]+', lower_message))
+    for module in modules:
+        module_code = module.module_code.lower()
+        module_name = module.module_name.lower()
+        if module_code in lower_message or module_name in lower_message:
+            return module
+
+        module_tokens = set(re.findall(r'[a-z0-9]+', module_name))
+        if module_tokens and module_tokens & message_tokens:
+            return module
+
+    if len(modules) == 1:
+        return modules[0]
+
+    code_like_match = re.search(r'\b([a-z]{2,}\d{2,}[a-z\d]*)\b', lower_message)
+    if code_like_match:
+        requested_code = code_like_match.group(1)
+        for module in modules:
+            if module.module_code.lower() == requested_code:
+                return module
+
+    return None
+
+
+def _student_module_attendance_rows(student_profile):
+    enrollments = (
+        Enrollment.objects.filter(student=student_profile)
+        .select_related('course')
+        .prefetch_related('modules')
+    )
+
+    rows = {}
+    for enrollment in enrollments:
+        modules = list(enrollment.modules.all()) or list(enrollment.course.modules.all())
+        if not modules:
+            modules = [None]
+
+        for module in modules:
+            if module is None:
+                row_key = enrollment.course.course_code
+                module_code = enrollment.course.course_code
+                module_name = enrollment.course.course_name
+                sessions_qs = ClassSession.objects.filter(course=enrollment.course, module__isnull=True)
+            else:
+                row_key = module.module_code
+                module_code = module.module_code
+                module_name = module.module_name
+                sessions_qs = ClassSession.objects.filter(course=enrollment.course).filter(
+                    Q(module=module) | Q(module__isnull=True)
+                )
+
+            total_sessions = sessions_qs.count()
+            if total_sessions == 0:
+                continue
+
+            attended_sessions = Attendance.objects.filter(
+                student=student_profile,
+                session__in=sessions_qs,
+                status__in=['Present', 'Late'],
+            ).count()
+            absent_sessions = Attendance.objects.filter(
+                student=student_profile,
+                session__in=sessions_qs,
+                status='Absent',
+            ).count()
+
+            row = rows.setdefault(row_key, {
+                'module_code': module_code,
+                'module_name': module_name,
+                'attendance_rate': 0,
+                'attended_sessions': 0,
+                'absent_sessions': 0,
+                'total_sessions': 0,
+                'course_codes': set(),
+                'course_names': set(),
+            })
+
+            row['attended_sessions'] += attended_sessions
+            row['absent_sessions'] += absent_sessions
+            row['total_sessions'] += total_sessions
+            row['course_codes'].add(enrollment.course.course_code)
+            row['course_names'].add(enrollment.course.course_name)
+
+    finalized_rows = []
+    for row in rows.values():
+        total_sessions = row['total_sessions']
+        attendance_rate = (row['attended_sessions'] / total_sessions) * 100 if total_sessions else 0
+        finalized_rows.append({
+            'module_code': row['module_code'],
+            'module_name': row['module_name'],
+            'attendance_rate': attendance_rate,
+            'attended_sessions': row['attended_sessions'],
+            'absent_sessions': row['absent_sessions'],
+            'total_sessions': total_sessions,
+            'course_codes': sorted(row['course_codes']),
+            'course_names': sorted(row['course_names']),
+        })
+
+    return sorted(finalized_rows, key=lambda row: (row['module_code'], row['module_name']))
+
+
+def _lecturer_module_attendance_rows(lecturer_profile):
+    rows = []
+    for module in lecturer_profile.modules.all().order_by('module_code'):
+        sessions_qs = ClassSession.objects.filter(lecturer=lecturer_profile).filter(
+            Q(module=module) | Q(module__isnull=True, course__modules=module)
+        )
+        total_sessions = sessions_qs.count()
+        if total_sessions == 0:
+            continue
+
+        attended_sessions = Attendance.objects.filter(
+            session__in=sessions_qs,
+            status__in=['Present', 'Late'],
+        ).count()
+        absent_sessions = Attendance.objects.filter(
+            session__in=sessions_qs,
+            status='Absent',
+        ).count()
+        attendance_rate = (attended_sessions / total_sessions) * 100 if total_sessions else 0
+        rows.append({
+            'module_code': module.module_code,
+            'module_name': module.module_name,
+            'attendance_rate': attendance_rate,
+            'attended_sessions': attended_sessions,
+            'absent_sessions': absent_sessions,
+            'total_sessions': total_sessions,
+        })
+
+    return sorted(rows, key=lambda row: (row['module_code'], row['module_name']))
+
+
+def _lecturer_todays_attendance_summary(lecturer_profile):
+    today = timezone.localdate()
+    records_qs = Attendance.objects.filter(
+        session__lecturer=lecturer_profile,
+        date_time__date=today,
+    ).select_related('student__user', 'session__course', 'session__module')
+
+    records = list(records_qs)
+    unique_student_ids = {record.student.user_id for record in records}
+    sessions_count = len({record.session_id for record in records})
+    present_count = sum(1 for record in records if record.status == 'Present')
+    late_count = sum(1 for record in records if record.status == 'Late')
+    absent_count = sum(1 for record in records if record.status == 'Absent')
+
+    return {
+        'date': today,
+        'records': records,
+        'students_count': len(unique_student_ids),
+        'sessions_count': sessions_count,
+        'present_count': present_count,
+        'late_count': late_count,
+        'absent_count': absent_count,
+    }
+
+
+def _lecturer_students_at_risk(lecturer_profile, limit=10):
+    taught_courses = Course.objects.filter(modules__in=lecturer_profile.modules.all()).distinct()
+    taught_course_ids = list(taught_courses.values_list('course_code', flat=True))
+
+    risk_rows = []
+    students = Student.objects.filter(enrollments__course__course_code__in=taught_course_ids).distinct()
+    for student in students:
+        module_rows = _student_exam_module_rows(student, course_ids=taught_course_ids)
+        if not module_rows:
+            continue
+
+        below_threshold_rows = [row for row in module_rows if not row['qualifies']]
+        if not below_threshold_rows:
+            continue
+
+        lowest_row = min(module_rows, key=lambda row: row['attendance_rate'])
+        risk_rows.append({
+            'student_name': student.user.get_full_name().strip() or student.user.username,
+            'student_number': student.user.username,
+            'lowest_module': lowest_row['module_name'],
+            'lowest_rate': lowest_row['attendance_rate'],
+            'below_threshold_count': len(below_threshold_rows),
+        })
+
+    risk_rows.sort(key=lambda row: (row['lowest_rate'], row['below_threshold_count'], row['student_name']))
+    return risk_rows[:limit]
+
+
+def _lecturer_best_attendance_class(lecturer_profile):
+    sessions_qs = ClassSession.objects.filter(lecturer=lecturer_profile).select_related('course', 'module')
+    best_session = None
+    best_rate = -1.0
+
+    for session in sessions_qs:
+        records_qs = Attendance.objects.filter(session=session)
+        total_records = records_qs.count()
+        if total_records == 0:
+            continue
+
+        attended_records = records_qs.filter(status__in=['Present', 'Late']).count()
+        attendance_rate = (attended_records / total_records) * 100 if total_records else 0
+        if attendance_rate > best_rate:
+            best_rate = attendance_rate
+            best_session = session
+
+    if best_session is None:
+        return None
+
+    return {
+        'course_code': best_session.course.course_code,
+        'course_name': best_session.course.course_name,
+        'module_code': best_session.module.module_code if best_session.module else best_session.course.course_code,
+        'module_name': best_session.module.module_name if best_session.module else best_session.course.course_name,
+        'day_of_week': best_session.day_of_week,
+        'start_time': best_session.start_time.strftime('%H:%M'),
+        'end_time': best_session.end_time.strftime('%H:%M'),
+        'room': best_session.room,
+        'attendance_rate': best_rate,
+    }
+
+
 def _parse_attendance_date(message):
     lower_message = message.lower()
     current_year = timezone.localdate().year
@@ -953,6 +1183,76 @@ def ai_chat(request):
                     f'{count} student(s) currently qualify for exam across your taught modules. '
                     f'The qualification rule is at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance.'
                 )
+        elif intent_name == 'module_lowest_attendance':
+            module_rows = _lecturer_module_attendance_rows(lecturer_profile)
+            if not module_rows:
+                reply = 'I could not find enough attendance records to rank your modules yet.'
+            else:
+                lowest_row = min(module_rows, key=lambda row: row['attendance_rate'])
+                reply = (
+                    f"The module with the lowest attendance is {lowest_row['module_name']} ({lowest_row['module_code']}) at "
+                    f"{lowest_row['attendance_rate']:.1f}%."
+                )
+        elif intent_name == 'module_highest_attendance':
+            module_rows = _lecturer_module_attendance_rows(lecturer_profile)
+            if not module_rows:
+                reply = 'I could not find enough attendance records to rank your modules yet.'
+            else:
+                highest_row = max(module_rows, key=lambda row: row['attendance_rate'])
+                reply = (
+                    f"The module with the highest attendance is {highest_row['module_name']} ({highest_row['module_code']}) at "
+                    f"{highest_row['attendance_rate']:.1f}%."
+                )
+        elif intent_name == 'todays_attendance_summary':
+            summary = _lecturer_todays_attendance_summary(lecturer_profile)
+            if summary['sessions_count'] == 0:
+                reply = 'No attendance has been recorded today yet.'
+            else:
+                reply = (
+                    f"Today you have attendance recorded for {summary['students_count']} student(s) across {summary['sessions_count']} session(s): "
+                    f"{summary['present_count']} Present, {summary['late_count']} Late, and {summary['absent_count']} Absent."
+                )
+        elif intent_name == 'students_at_risk_exam':
+            risk_rows = _lecturer_students_at_risk(lecturer_profile)
+            if not risk_rows:
+                reply = 'No students are currently at risk of not qualifying based on the attendance records I have.'
+            else:
+                lines = [
+                    f"{row['student_name']} ({row['student_number']}): lowest module {row['lowest_module']} at {row['lowest_rate']:.1f}%"
+                    for row in risk_rows
+                ]
+                reply = 'Students at risk of not qualifying:\n' + '\n'.join(lines)
+        elif intent_name == 'absent_today_count':
+            summary = _lecturer_todays_attendance_summary(lecturer_profile)
+            if summary['absent_count'] == 0:
+                reply = 'No students were marked absent today.'
+            else:
+                reply = f"{summary['absent_count']} student(s) were marked absent today across {summary['sessions_count']} session(s)."
+        elif intent_name == 'attendance_statistics_for_module':
+            module = _extract_module_from_message(message, list(lecturer_profile.modules.all()))
+            if not module:
+                reply = 'Please mention the module name or code so I can show its attendance statistics.'
+            else:
+                module_rows = _lecturer_module_attendance_rows(lecturer_profile)
+                matched_row = next((row for row in module_rows if row['module_code'].lower() == module.module_code.lower()), None)
+                if not matched_row:
+                    reply = f'I could not find enough attendance records for {module.module_name} yet.'
+                else:
+                    reply = (
+                        f"Attendance statistics for {matched_row['module_name']} ({matched_row['module_code']}): "
+                        f"{matched_row['attended_sessions']} attended, {matched_row['absent_sessions']} absent, "
+                        f"{matched_row['total_sessions']} total session record(s), {matched_row['attendance_rate']:.1f}% attendance."
+                    )
+        elif intent_name == 'best_attendance_class':
+            best_class = _lecturer_best_attendance_class(lecturer_profile)
+            if not best_class:
+                reply = 'I could not find enough attendance records to compare classes yet.'
+            else:
+                reply = (
+                    f"The best attended class is {best_class['course_code']} - {best_class['course_name']} "
+                    f"({best_class['module_name']}) on {best_class['day_of_week']} from {best_class['start_time']} to {best_class['end_time']} "
+                    f"in {best_class['room']} with {best_class['attendance_rate']:.1f}% attendance."
+                )
         elif intent_name == 'taught_modules':
             taught_courses = Course.objects.filter(modules__in=lecturer_profile.modules.all()).distinct().order_by('course_code')
             if taught_courses:
@@ -975,6 +1275,7 @@ def ai_chat(request):
     enrolled_course_codes = [course.course_code for course in enrolled_courses]
     lower = message.lower()
     attendance_date = _parse_attendance_date(message)
+    module_rows = _student_module_attendance_rows(student_profile)
 
     if intent_name == 'next_session':
         schedule_qs = ClassSession.objects.filter(course__in=enrolled_courses).select_related('course', 'lecturer__user')
@@ -1022,6 +1323,68 @@ def ai_chat(request):
                 f"That is {percentage:.1f}% attendance across {summary['total_sessions']} recorded sessions. "
                 f"You need at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance to qualify for exams."
             )
+    elif intent_name == 'attendance_by_module':
+        if not module_rows:
+            reply = 'You do not have enough attendance records yet to break down attendance by module.'
+        else:
+            lines = []
+            for row in module_rows:
+                course_note = f" - {', '.join(row['course_codes'])}" if row['course_codes'] else ''
+                lines.append(
+                    f"{row['module_name']} ({row['module_code']}): {row['attended_sessions']}/{row['total_sessions']} attended "
+                    f"({row['attendance_rate']:.1f}%){course_note}"
+                )
+            reply = 'Your attendance by module:\n' + '\n'.join(lines)
+    elif intent_name in {'module_lowest_attendance', 'module_highest_attendance'}:
+        if not module_rows:
+            reply = 'You do not have enough attendance records yet to compare your modules.'
+        else:
+            selected_row = min(module_rows, key=lambda row: row['attendance_rate']) if intent_name == 'module_lowest_attendance' else max(module_rows, key=lambda row: row['attendance_rate'])
+            relation = 'lowest' if intent_name == 'module_lowest_attendance' else 'highest'
+            course_note = f" across {', '.join(selected_row['course_codes'])}" if selected_row['course_codes'] else ''
+            if intent_name == 'module_lowest_attendance':
+                reply = (
+                    f"The module you need to improve attendance in is {selected_row['module_name']} ({selected_row['module_code']}) "
+                    f"at {selected_row['attendance_rate']:.1f}%{course_note}."
+                )
+            else:
+                reply = (
+                    f"Your highest attendance is in {selected_row['module_name']} ({selected_row['module_code']}) "
+                    f"at {selected_row['attendance_rate']:.1f}%{course_note}."
+                )
+    elif intent_name == 'attendance_this_month':
+        today = timezone.localdate()
+        attended_this_month = Attendance.objects.filter(
+            student=student_profile,
+            date_time__year=today.year,
+            date_time__month=today.month,
+            status__in=['Present', 'Late'],
+        ).count()
+        if attended_this_month == 0:
+            reply = 'You have not attended any classes this month yet.'
+        else:
+            reply = f'You have attended {attended_this_month} class record(s) this month.'
+    elif intent_name == 'missed_classes_this_week':
+        start_of_week = timezone.localdate() - timedelta(days=timezone.localdate().weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        missed_records = Attendance.objects.filter(
+            student=student_profile,
+            date_time__date__gte=start_of_week,
+            date_time__date__lte=end_of_week,
+            status='Absent',
+        ).select_related('session__course', 'session__module').order_by('date_time')
+
+        if not missed_records:
+            reply = 'You did not miss any classes this week.'
+        else:
+            lines = []
+            for record in missed_records:
+                module_name = record.session.module.module_name if record.session.module else record.session.course.course_name
+                module_code = record.session.module.module_code if record.session.module else record.session.course.course_code
+                lines.append(
+                    f"{record.date_time.strftime('%A %d %b')} - {module_name} ({module_code}) in {record.session.room}"
+                )
+            reply = 'You missed these classes this week:\n' + '\n'.join(lines)
     elif intent_name == 'exam_qualification_count':
         _backfill_missed_attendance(student_profile)
         module_rows = _student_exam_module_rows(student_profile)
@@ -1029,14 +1392,16 @@ def ai_chat(request):
         if not module_rows:
             reply = 'I could not find enough attendance records to calculate exam eligibility yet.'
         elif not qualifying_rows:
+            lowest_row = min(module_rows, key=lambda row: row['attendance_rate'])
             reply = (
-                f'You currently qualify for exam in 0 module(s). '
+                f'No, you do not currently qualify for exams. '
+                f'Your lowest attendance is {lowest_row["module_name"]} ({lowest_row["module_code"]}) at {lowest_row["attendance_rate"]:.1f}%. '
                 f'A student must reach at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance in a module to qualify.'
             )
         else:
             module_list = ', '.join(f"{row['module_code']} ({row['attendance_rate']:.1f}%)" for row in qualifying_rows)
             reply = (
-                f'You currently qualify for exam in {len(qualifying_rows)} module(s): {module_list}. '
+                f'Yes, you qualify for exams in {len(qualifying_rows)} module(s): {module_list}. '
                 f'The qualification rule is at least {EXAM_ATTENDANCE_THRESHOLD:.0f}% attendance.'
             )
     elif intent_name == 'enrolled_courses':
