@@ -483,9 +483,10 @@ def view_course_sessions(request, course_code):
     
     # Securely get the Course object. It must exist AND be taught by the current lecturer (via module assignments).
     course = get_object_or_404(
-        Course,
-        course_code=course_code,
-        modules__in=lecturer_profile.modules.all()
+        Course.objects.filter(
+            course_code=course_code,
+            modules__in=lecturer_profile.modules.all()
+        ).distinct()
     )
 
     # Fetch all class sessions for this specific course and lecturer.

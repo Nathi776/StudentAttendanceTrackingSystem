@@ -1297,6 +1297,13 @@
                     .catch(() => {});
             }
 
+            reopenAttendanceModal(sessionId) {
+                const session = allClassSchedule.find((item) => Number(item.id) === Number(sessionId));
+                if (session) {
+                    this.openAttendanceModalForSession(session);
+                }
+            }
+
             // --- Dashboard Attendance Summary Logic ---
             renderAttendanceSummary() {
                 if (allAttendanceRecords.length === 0) {
@@ -1462,7 +1469,12 @@
                     }
 
                     if (isMultipleFaces) {
-                        showAlert("Attendance Failed", "Multiple faces were detected. Please make sure only one person is visible in the camera and try again.", "danger");
+                        showAlert("Attendance Failed", "Multiple faces were detected. Please make sure only one person is visible in the camera and try again.", "danger", {
+                            action: {
+                                label: "Try Again",
+                                onClick: () => this.reopenAttendanceModal(sessionId)
+                            }
+                        });
                         return;
                     }
 
@@ -1537,7 +1549,12 @@
 
                         const errorText = (data.error || "An error occurred while marking attendance.").toString().toLowerCase();
                         if (errorText.includes("multiple faces")) {
-                            showAlert("Attendance Failed", "Multiple faces were detected. Please make sure only one person is visible in the camera and try again.", "danger");
+                            showAlert("Attendance Failed", "Multiple faces were detected. Please make sure only one person is visible in the camera and try again.", "danger", {
+                                action: {
+                                    label: "Try Again",
+                                    onClick: () => this.reopenAttendanceModal(sessionId)
+                                }
+                            });
                         } else {
                             showAlert("Attendance Failed", data.error || "An error occurred while marking attendance.", "danger");
                         }
