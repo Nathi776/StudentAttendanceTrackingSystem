@@ -20,7 +20,7 @@ from django.contrib.auth import authenticate, login, logout
 import logging
 
 
-from .models import User, Student, Lecturer, Course, Enrollment, ClassSession, Attendance, FaceEncoding
+from .models import User, Student, Lecturer, Course, Enrollment, ClassSession, Attendance, FaceEncoding, Module
 from .chat_intents import LOW_CONFIDENCE_REPLY, resolve_chat_intent
 
 from .forms import (
@@ -44,7 +44,7 @@ from django.contrib import messages
 from datetime import timedelta
 from datetime import datetime, time
 from django.utils import timezone
-from .models import User, Student, Lecturer, Course, Enrollment, ClassSession, Attendance, FaceEncoding
+from .models import User, Student, Lecturer, Course, Enrollment, ClassSession, Attendance, FaceEncoding, Module
 from .forms import (
     CustomUserCreationForm, StudentForm, LecturerForm, CourseForm,
     EnrollmentForm, ClassSessionForm, AttendanceForm
@@ -54,6 +54,7 @@ import csv
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 import re
+import smtplib
 
 # --- Helper functions for user type checks ---
 def is_student(user):
@@ -105,6 +106,63 @@ def _backfill_missed_attendance(student_profile):
 
     if missed_records:
         Attendance.objects.bulk_create(missed_records)
+
+
+def _backfill_session_absences(session, now_local):
+    if not _session_has_passed(session, now_local):
+        return
+
+    if session.module:
+        enrolled_students = Student.objects.filter(
+            enrollments__course=session.course,
+            enrollments__modules=session.module,
+        ).distinct()
+    else:
+        enrolled_students = Student.objects.filter(
+            enrollments__course=session.course,
+        ).distinct()
+
+    existing_student_ids = set(
+        Attendance.objects.filter(session=session).values_list('student_id', flat=True)
+    )
+
+    missed_records = [
+        Attendance(
+            student=student,
+            session=session,
+            status='Absent',
+            date_time=now_local,
+        )
+        for student in enrolled_students
+        if student.pk not in existing_student_ids
+    ]
+
+    if missed_records:
+        Attendance.objects.bulk_create(missed_records)
+
+
+def _student_module_lecturers(student_profile):
+    lecturer_rows = []
+    seen_pairs = set()
+
+    enrollments = student_profile.enrollments.prefetch_related('modules__lecturers__user', 'course__modules__lecturers__user')
+    for enrollment in enrollments:
+        modules = list(enrollment.modules.all()) or list(enrollment.course.modules.all())
+        for module in modules:
+            for lecturer in module.lecturers.all():
+                pair_key = (module.module_code, lecturer.user.email)
+                if pair_key in seen_pairs:
+                    continue
+                seen_pairs.add(pair_key)
+                lecturer_rows.append({
+                    'module_code': module.module_code,
+                    'module_name': module.module_name,
+                    'lecturer_name': f"{lecturer.user.first_name} {lecturer.user.last_name}",
+                    'lecturer_email': lecturer.user.email,
+                })
+
+    lecturer_rows.sort(key=lambda item: (item['module_code'], item['lecturer_name']))
+    return lecturer_rows
 
 
 # --- Basic Authentication Views ---
@@ -272,18 +330,7 @@ def student_dashboard(request):
             'lecturer_name': session.lecturer.user.get_full_name() if session.lecturer else 'N/A',
         })
 
-    enrollments = student_profile.enrollments.select_related('course')
-    lecturer_info = []
-    for enrollment in enrollments:
-        course = enrollment.course
-        for module in course.modules.all():
-            for lecturer in module.lecturers.all():
-                lecturer_info.append({
-                    'course_code': course.course_code,
-                    'course_name': course.course_name,
-                    'lecturer_name': f"{lecturer.user.first_name} {lecturer.user.last_name}",
-                    'lecturer_email': lecturer.user.email,
-                })
+    lecturer_info = _student_module_lecturers(student_profile)
 
     context = {
         'student': {
@@ -579,45 +626,42 @@ def send_announcement(request):
 
     lecturer_profile = request.user.lecturer_profile
     
-    # Get all courses taught by the current lecturer (via module assignments)
-    lecturer_courses = Course.objects.filter(modules__in=lecturer_profile.modules.all()).distinct().order_by('course_name')
-    
-    
-    course_choices = [('', 'All My Modules')] + \
-                     [(course.course_code, f"{course.course_name} ({course.course_code})") 
-                      for course in lecturer_courses]
+    lecturer_modules = lecturer_profile.modules.all().order_by('module_name', 'module_code')
+
+    module_choices = [('', 'All My Modules')] + [
+        (module.module_code, f"{module.module_name} ({module.module_code})")
+        for module in lecturer_modules
+    ]
 
     if request.method == 'POST':
         form = AnnouncementForm(request.POST)
-        
-        form.fields['course_code'].choices = course_choices 
+        form.fields['course_code'].choices = module_choices 
         
         if form.is_valid():
-            selected_course_code = form.cleaned_data['course_code']
+            selected_module_code = form.cleaned_data['course_code']
             subject = form.cleaned_data['subject']
             message = form.cleaned_data['message']
             
             recipient_emails = set()  
             
-            if selected_course_code:
-                # Send to students of a specific course
+            if selected_module_code:
+                # Send to students enrolled in a specific module you teach
                 try:
-                    course = lecturer_courses.get(course_code=selected_course_code)
-                    
-                
-                    students_to_email = Student.objects.filter(enrollments__course=course).distinct() 
-                    
+                    module = lecturer_modules.get(module_code=selected_module_code)
+
+                    students_to_email = Student.objects.filter(enrollments__modules=module).distinct()
+
                     for student in students_to_email:
-                        if student.user and student.user.email:  
+                        if student.user and student.user.email:
                             recipient_emails.add(student.user.email)
-                except Course.DoesNotExist:
-                    messages.error(request, "Selected course not found or you don't teach it.")
+                except Module.DoesNotExist:
+                    messages.error(request, "Selected module not found or you don't teach it.")
                     return render(request, 'lecturers/send_announcement.html', {'form': form})
             else:
                 # Send to all students across all courses taught by the lecturer
-                 
-                students_to_email = Student.objects.filter(enrollments__course__in=lecturer_courses).distinct() # <--- FIXED THIS LINE
-                
+
+                students_to_email = Student.objects.filter(enrollments__modules__in=lecturer_modules).distinct()
+
                 for student in students_to_email:
                     if student.user and student.user.email:
                         recipient_emails.add(student.user.email)
@@ -630,24 +674,29 @@ def send_announcement(request):
                     'subject': subject,
                     'message': message,
                     'lecturer_name': request.user.get_full_name() or request.user.username,
-                    'course_info': selected_course_code if selected_course_code else 'All your courses'
+                    'course_info': selected_module_code if selected_module_code else 'All your modules'
                 })
                 text_content = strip_tags(html_content)  
 
                 try:
-                    sender_email = request.user.email or settings.DEFAULT_FROM_EMAIL
+                    sender_email = settings.DEFAULT_FROM_EMAIL
                     sender_name = request.user.get_full_name() or request.user.username
+                    reply_to = [request.user.email] if request.user.email else None
 
                     msg = EmailMultiAlternatives(
                         subject,
                         text_content,
-                        f"{sender_name} <{sender_email}>",  
-                        list(recipient_emails)  
+                        sender_email,
+                        list(recipient_emails),
+                        reply_to=reply_to,
                     )
                     msg.attach_alternative(html_content, "text/html")
                     msg.send()
                     messages.success(request, f"Announcement sent successfully to {len(recipient_emails)} student(s).")
                     return redirect('lecturer_dashboard')  
+                except (smtplib.SMTPException, OSError):
+                    logger.exception("Failed to send announcement email")
+                    messages.error(request, "Failed to send announcement. Please verify email configuration and try again.")
                 except Exception as e:
                     logger.exception("Failed to send announcement email")
                     messages.error(request, "Failed to send announcement. Please verify email configuration and try again.")
@@ -655,8 +704,8 @@ def send_announcement(request):
             messages.error(request, "Please correct the errors in the form.")
     else:
         form = AnnouncementForm()
-        
-        form.fields['course_code'].choices = course_choices 
+
+        form.fields['course_code'].choices = module_choices 
 
     context = {
         'form': form,
@@ -1845,6 +1894,9 @@ def mark_attendance_api(request):
             }
         )
 
+        if now_local > session_end_dt:
+            _backfill_session_absences(session, now_local)
+
         new_record_data = {
             'course_name': attendance_record.session.course.course_name,
             'course_code': attendance_record.session.course.course_code,
@@ -2002,18 +2054,5 @@ def download_timetable(request):
 @login_required
 def contact_lecturers(request):
     student = request.user.student_profile  # Get the Student profile for the logged-in user
-    # Get all enrollments for this student
-    enrollments = student.enrollments.select_related('course')
-    # Build a list of lecturer info for each enrolled course
-    lecturer_info = []
-    for enrollment in enrollments:
-        course = enrollment.course
-        for module in course.modules.all():
-            for lecturer in module.lecturers.all():
-                lecturer_info.append({
-                    'course_code': course.course_code,
-                    'course_name': course.course_name,
-                    'lecturer_name': f"{lecturer.user.first_name} {lecturer.user.last_name}",
-                    'lecturer_email': lecturer.user.email,
-                })
+    lecturer_info = _student_module_lecturers(student)
     return render(request, 'students/contact_lecturers.html', {'lecturer_info': lecturer_info})

@@ -11,7 +11,7 @@ from .models import User, Student, Lecturer, Course, Enrollment, ClassSession, A
 class AnnouncementForm(forms.Form):
     
     course_code = forms.ChoiceField(
-        label="Select Course (or leave blank for all your Modules)",
+        label="Select Module (or leave blank for all your Modules)",
         required=False,
         choices=[],  
         widget=forms.Select(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'})
@@ -25,7 +25,7 @@ class AnnouncementForm(forms.Form):
     message = forms.CharField(
         label="Message",
         widget=forms.Textarea(attrs={'rows': 8, 'class': 'mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm', 'placeholder': 'Dear students, please be advised that...'}),
-        help_text="Write your announcement here. It will be sent to all students enrolled in the selected course(s)."
+        help_text="Write your announcement here. It will be sent to all students enrolled in the selected module(s)."
     )
 
 
@@ -276,6 +276,12 @@ class ClassSessionForm(forms.ModelForm):
         cleaned_data = super().clean()
         course = cleaned_data.get('course')
         module = cleaned_data.get('module')
+        day_of_week = cleaned_data.get('day_of_week')
+        start_time = cleaned_data.get('start_time')
+        end_time = cleaned_data.get('end_time')
+        room = cleaned_data.get('room')
+
+        lecturer = self.lecturer_profile or getattr(self.instance, 'lecturer', None)
 
         if course and module:
             # Ensure the module is part of the selected course
@@ -289,6 +295,23 @@ class ClassSessionForm(forms.ModelForm):
         # Require module selection if course is selected
         if course and not module:
             raise forms.ValidationError("Please select a module for this class session.")
+
+        if course and module and day_of_week and start_time and end_time and room:
+            duplicate_qs = ClassSession.objects.filter(
+                course=course,
+                module=module,
+                day_of_week=day_of_week,
+                start_time=start_time,
+                end_time=end_time,
+                room=room,
+            )
+            if lecturer is not None:
+                duplicate_qs = duplicate_qs.filter(lecturer=lecturer)
+            if self.instance and self.instance.pk:
+                duplicate_qs = duplicate_qs.exclude(pk=self.instance.pk)
+
+            if duplicate_qs.exists():
+                raise forms.ValidationError("A class session with the same course, module, time, and room already exists.")
 
         return cleaned_data
 

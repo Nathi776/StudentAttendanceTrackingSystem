@@ -799,13 +799,13 @@
                 </div>
 
                 <div class="custom-card">
-                    <div class="custom-card-header">Contact Lecturer</div>
+                    <div class="custom-card-header">Contact Lecturers</div>
                     <div class="custom-card-content">
                         <ul class="space-y-3">
                             {% if lecturer_info %}
                                 {% for item in lecturer_info %}
                                     <li>
-                                        <span class="font-semibold">{{ item.course_code }} - {{ item.course_name }}</span><br>
+                                            <span class="font-semibold">{{ item.module_code }} - {{ item.module_name }}</span><br>
                                         <span>
                                             <i class="fas fa-user mr-1"></i>
                                             {{ item.lecturer_name }}
