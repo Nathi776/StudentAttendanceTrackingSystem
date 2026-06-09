@@ -438,6 +438,10 @@ def lecturer_dashboard(request):
                     'subjectName': session.course.course_name,
                     'subjectCode': session.course.course_code,
                 },
+                'module': {
+                    'moduleName': session.module.module_name if session.module else session.course.course_name,
+                    'moduleCode': session.module.module_code if session.module else session.course.course_code,
+                },
                 'date': concrete_session_date,
                 'time': session.start_time,
                 'location': session.room,
