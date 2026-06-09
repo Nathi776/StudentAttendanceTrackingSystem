@@ -165,8 +165,8 @@ def attendance_report(request):
             'student_id': record.student.user.id,
             'course_code': record.session.course.course_code,
             'course_name': record.session.course.course_name,
-            'date': record.date_time.strftime('%Y-%m-%d'),
-            'time': record.date_time.strftime('%H:%M'),
+            'date': timezone.localtime(record.date_time).strftime('%Y-%m-%d'),
+            'time': timezone.localtime(record.date_time).strftime('%H:%M'),
             'status': record.status,
             'lecturer': record.session.lecturer.user.get_full_name() if record.session.lecturer else 'N/A',
         })

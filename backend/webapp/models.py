@@ -271,7 +271,9 @@ class Attendance(models.Model):
         ordering = ['-date_time']
 
     def __str__(self):
-        return f"{self.student.user.get_full_name()} - {self.session.course.course_name} - {self.date_time.strftime('%Y-%m-%d %H:%M')} ({self.status})"
+        from django.utils import timezone
+
+        return f"{self.student.user.get_full_name()} - {self.session.course.course_name} - {timezone.localtime(self.date_time).strftime('%Y-%m-%d %H:%M')} ({self.status})"
 
 
 # --- 8. FaceEncoding Model (AI feature: store face embeddings) ---

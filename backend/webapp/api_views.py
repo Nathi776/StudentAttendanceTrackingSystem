@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -125,7 +126,7 @@ def api_student_dashboard(request):
             'module_code': a.session.module.module_code if a.session.module else a.session.course.course_code,
             'course_name': a.session.course.course_name,
             'course_code': a.session.course.course_code,
-            'date_time': a.date_time.isoformat(),
+            'date_time': timezone.localtime(a.date_time).isoformat(),
             'status': a.status,
         }
         for a in attendance

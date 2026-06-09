@@ -514,7 +514,7 @@ def lecturer_dashboard(request):
     attendance_records_data = []
     for record in attendance_records_qs:
         module_code = record.session.module.module_code if record.session.module else record.session.course.course_code
-        formatted_datetime = record.date_time.strftime('%Y-%m-%d %H:%M:%S')
+        formatted_datetime = timezone.localtime(record.date_time).strftime('%Y-%m-%d %H:%M:%S')
         attendance_records_data.append({
             'id': record.student.user.id,
             'student_firstName': record.student.user.first_name,
@@ -1365,7 +1365,7 @@ def ai_chat(request):
                 module_name = record.session.module.module_name if record.session.module else record.session.course.course_name
                 module_code = record.session.module.module_code if record.session.module else record.session.course.course_code
                 lines.append(
-                    f"{record.date_time.strftime('%A %d %b %Y')} - {module_name} ({module_code}) in {record.session.room}"
+                    f"{timezone.localtime(record.date_time).strftime('%A %d %b %Y')} - {module_name} ({module_code}) in {record.session.room}"
                 )
             reply = (
                 f'You have {summary["absent_count"]} absent record(s). '
@@ -1460,7 +1460,7 @@ def ai_chat(request):
                 module_name = record.session.module.module_name if record.session.module else record.session.course.course_name
                 module_code = record.session.module.module_code if record.session.module else record.session.course.course_code
                 lines.append(
-                    f"{record.date_time.strftime('%A %d %b')} - {module_name} ({module_code}) in {record.session.room}"
+                    f"{timezone.localtime(record.date_time).strftime('%A %d %b')} - {module_name} ({module_code}) in {record.session.room}"
                 )
             reply = 'You missed these classes this week:\n' + '\n'.join(lines)
     elif intent_name == 'exam_qualification_count':
@@ -1897,7 +1897,7 @@ def mark_attendance_api(request):
             defaults={
                 'status': attendance_status,
                 'image_data': content_file,
-                'date_time': timezone.now()
+                'date_time': timezone.localtime(timezone.now())
             }
         )
 
@@ -1907,7 +1907,7 @@ def mark_attendance_api(request):
         new_record_data = {
             'course_name': attendance_record.session.course.course_name,
             'course_code': attendance_record.session.course.course_code,
-            'date_time': attendance_record.date_time.isoformat(),
+            'date_time': timezone.localtime(attendance_record.date_time).isoformat(),
             'status': attendance_record.status,
             'image_data_url': attendance_record.image_data.url if attendance_record.image_data else None,
             'session_id': attendance_record.session.id,
@@ -2029,7 +2029,7 @@ def download_attendance(request):
     for record in attendance_records:
         writer.writerow([
             record.session.course.course_name,
-            record.date_time.strftime('%Y-%m-%d %H:%M'),
+            timezone.localtime(record.date_time).strftime('%Y-%m-%d %H:%M'),
             record.status
         ])
     return response
