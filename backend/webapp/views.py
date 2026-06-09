@@ -55,6 +55,7 @@ from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 import re
 import smtplib
+import socket
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPServerDisconnected
 
 # --- Helper functions for user type checks ---
@@ -725,6 +726,17 @@ def send_announcement(request):
         'form': form,
     }
     return render(request, 'lecturers/send_announcement.html', context)
+
+
+@login_required
+def test_smtp(request):
+    """Temporary diagnostic view for checking outbound SMTP connectivity."""
+    try:
+        sock = socket.create_connection(("smtp.gmail.com", 587), timeout=10)
+        sock.close()
+        return HttpResponse("Connection successful")
+    except Exception as exc:
+        return HttpResponse(f"Connection failed: {exc}")
 
 
 WEEKDAY_INDEX = {
