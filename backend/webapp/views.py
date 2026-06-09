@@ -391,6 +391,9 @@ def lecturer_dashboard(request):
         lecturer=lecturer_profile
     ).select_related('course').order_by('day_of_week', 'start_time')
 
+    for session in lecturer_sessions_qs:
+        _backfill_session_absences(session, timezone.localtime(timezone.now()))
+
     # --- Upcoming Session Calculation ---
     upcoming_session = None
     now = timezone.localtime(timezone.now())  # Get the current local datetime
