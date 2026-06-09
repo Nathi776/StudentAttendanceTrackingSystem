@@ -55,6 +55,7 @@ from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 import re
 import smtplib
+from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPServerDisconnected
 
 # --- Helper functions for user type checks ---
 def is_student(user):
@@ -701,6 +702,12 @@ def send_announcement(request):
                     msg.send()
                     messages.success(request, f"Announcement sent successfully to {len(recipient_emails)} student(s).")
                     return redirect('lecturer_dashboard')  
+                except SMTPAuthenticationError:
+                    logger.exception("Failed to send announcement email: SMTP authentication failed")
+                    messages.error(request, "Email authentication failed. Check the Gmail app password and sender account on Railway.")
+                except (SMTPConnectError, SMTPServerDisconnected, TimeoutError, OSError):
+                    logger.exception("Failed to send announcement email: SMTP connection failed")
+                    messages.error(request, "Could not connect to the mail server. Check SMTP host, port, TLS, and network access.")
                 except (smtplib.SMTPException, OSError):
                     logger.exception("Failed to send announcement email")
                     messages.error(request, "Failed to send announcement. Please verify email configuration and try again.")
