@@ -59,13 +59,14 @@ Set these in the Railway service that runs Django:
 - `CORS_ALLOWED_ORIGINS=https://student-attendance-tracking-system-zeta.vercel.app,http://localhost:3000`
 - `CSRF_TRUSTED_ORIGINS=https://student-attendance-tracking-system-zeta.vercel.app,http://localhost:3000`
 
-Optional but recommended:
+Optional but recommended for transactional email delivery:
 
-- `EMAIL_HOST`
-- `EMAIL_PORT`
-- `EMAIL_USE_TLS`
-- `EMAIL_HOST_USER`
-- `EMAIL_HOST_PASSWORD`
+- `SENDGRID_API_KEY`
+- `SENDGRID_FROM_EMAIL`
+- `DEFAULT_FROM_EMAIL`
+- `EMAIL_TIMEOUT`
+
+If `SENDGRID_API_KEY` is present, the backend sends announcements through the SendGrid REST API instead of SMTP. Without it, the app falls back to a console backend for local development or incomplete deployments.
 
 Face recognition note for Railway:
 

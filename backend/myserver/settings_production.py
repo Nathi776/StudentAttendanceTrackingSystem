@@ -93,14 +93,15 @@ CSRF_TRUSTED_ORIGINS = _get_list_env('CSRF_TRUSTED_ORIGINS', 'http://localhost:3
 # Email configuration
 # ---------------------------------------------------------------------------
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', 10))
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '').strip()
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '').replace(' ', '').strip()
-DEFAULT_FROM_EMAIL = (os.environ.get('DEFAULT_FROM_EMAIL', '') or EMAIL_HOST_USER or 'no-reply@edutrack.local').strip()
+SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '').strip()
+SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL', '').strip()
+DEFAULT_FROM_EMAIL = (os.environ.get('DEFAULT_FROM_EMAIL', '') or SENDGRID_FROM_EMAIL or 'no-reply@edutrack.local').strip()
+
+if SENDGRID_API_KEY:
+    EMAIL_BACKEND = 'myserver.email_backends.SendGridEmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # ---------------------------------------------------------------------------
 # Static and media files

@@ -19,7 +19,6 @@ from django.core.files.base import ContentFile
 from django.contrib.auth import authenticate, login, logout
 import logging
 
-
 from .models import User, Student, Lecturer, Course, Enrollment, ClassSession, Attendance, FaceEncoding, Module
 from .chat_intents import LOW_CONFIDENCE_REPLY, resolve_chat_intent
 
@@ -54,9 +53,6 @@ import csv
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 import re
-import smtplib
-import socket
-from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPServerDisconnected
 
 # --- Helper functions for user type checks ---
 def is_student(user):
@@ -689,7 +685,6 @@ def send_announcement(request):
 
                 try:
                     sender_email = settings.DEFAULT_FROM_EMAIL
-                    sender_name = request.user.get_full_name() or request.user.username
                     reply_to = [request.user.email] if request.user.email else None
 
                     msg = EmailMultiAlternatives(
@@ -702,17 +697,8 @@ def send_announcement(request):
                     msg.attach_alternative(html_content, "text/html")
                     msg.send()
                     messages.success(request, f"Announcement sent successfully to {len(recipient_emails)} student(s).")
-                    return redirect('lecturer_dashboard')  
-                except SMTPAuthenticationError:
-                    logger.exception("Failed to send announcement email: SMTP authentication failed")
-                    messages.error(request, "Email authentication failed. Check the Gmail app password and sender account on Railway.")
-                except (SMTPConnectError, SMTPServerDisconnected, TimeoutError, OSError):
-                    logger.exception("Failed to send announcement email: SMTP connection failed")
-                    messages.error(request, "Could not connect to the mail server. Check SMTP host, port, TLS, and network access.")
-                except (smtplib.SMTPException, OSError):
-                    logger.exception("Failed to send announcement email")
-                    messages.error(request, "Failed to send announcement. Please verify email configuration and try again.")
-                except Exception as e:
+                    return redirect('lecturer_dashboard')
+                except Exception:
                     logger.exception("Failed to send announcement email")
                     messages.error(request, "Failed to send announcement. Please verify email configuration and try again.")
         else:
@@ -726,18 +712,6 @@ def send_announcement(request):
         'form': form,
     }
     return render(request, 'lecturers/send_announcement.html', context)
-
-
-@login_required
-def test_smtp(request):
-    """Temporary diagnostic view for checking outbound SMTP connectivity."""
-    try:
-        sock = socket.create_connection(("smtp.gmail.com", 587), timeout=10)
-        sock.close()
-        return HttpResponse("Connection successful")
-    except Exception as exc:
-        return HttpResponse(f"Connection failed: {exc}")
-
 
 WEEKDAY_INDEX = {
     'monday': 0,

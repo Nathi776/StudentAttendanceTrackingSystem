@@ -29,7 +29,6 @@ urlpatterns = [
 
     # --- announcements urls---
    path('announcements/send/', views.send_announcement, name='send_announcement'),
-    path('diagnostics/test-smtp/', views.test_smtp, name='test_smtp'),
     # --- API Endpoints ---
     path('api/update-student-profile/', views.update_student_profile_api, name='update_student_profile_api'),
     path('api/enroll-face/', views.enroll_face_api, name='enroll_face_api'),
