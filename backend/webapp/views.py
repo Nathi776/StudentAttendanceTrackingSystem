@@ -1099,6 +1099,14 @@ def _student_attendance_summary(student_profile):
     }
 
 
+def _student_absent_records(student_profile):
+    return (
+        Attendance.objects.filter(student=student_profile, status='Absent')
+        .select_related('session__course', 'session__module')
+        .order_by('date_time')
+    )
+
+
 def _lecturer_qualified_student_count(lecturer_profile):
     taught_courses = Course.objects.filter(modules__in=lecturer_profile.modules.all()).distinct()
     taught_course_ids = list(taught_courses.values_list('course_code', flat=True))
@@ -1292,7 +1300,21 @@ def ai_chat(request):
     elif intent_name == 'absent_count':
         _backfill_missed_attendance(student_profile)
         summary = _student_attendance_summary(student_profile)
-        reply = f'You have {summary["absent_count"]} absent record(s).'
+        absent_records = list(_student_absent_records(student_profile))
+        if not absent_records:
+            reply = 'You do not have any absent records yet.'
+        else:
+            lines = []
+            for record in absent_records:
+                module_name = record.session.module.module_name if record.session.module else record.session.course.course_name
+                module_code = record.session.module.module_code if record.session.module else record.session.course.course_code
+                lines.append(
+                    f"{record.date_time.strftime('%A %d %b %Y')} - {module_name} ({module_code}) in {record.session.room}"
+                )
+            reply = (
+                f'You have {summary["absent_count"]} absent record(s). '
+                f'You were absent on:\n' + '\n'.join(lines)
+            )
     elif intent_name == 'present_count':
         _backfill_missed_attendance(student_profile)
         summary = _student_attendance_summary(student_profile)

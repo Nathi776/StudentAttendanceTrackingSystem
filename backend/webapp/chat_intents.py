@@ -85,6 +85,9 @@ INTENTS: tuple[IntentDefinition, ...] = (
         roles=frozenset({'student'}),
         examples=(
             'how many times was i absent',
+            'days i was absent',
+            'when was i absent',
+            'which days was i absent',
             'how many absences do i have',
             'how often did i miss class',
             'what is my absence count',
