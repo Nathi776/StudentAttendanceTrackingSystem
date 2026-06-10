@@ -84,8 +84,21 @@ def _session_has_passed(session, now_local):
 
 def _backfill_missed_attendance(student_profile):
     now_local = timezone.localtime(timezone.now())
-    enrolled_course_ids = Enrollment.objects.filter(student=student_profile).values_list('course_id', flat=True)
-    sessions_qs = ClassSession.objects.filter(course__in=enrolled_course_ids).only('id', 'day_of_week', 'end_time')
+    eligible_session_ids = set()
+    enrollments = Enrollment.objects.filter(student=student_profile).select_related('course').prefetch_related('modules')
+
+    for enrollment in enrollments:
+        session_qs = ClassSession.objects.filter(course=enrollment.course)
+        enrolled_modules = list(enrollment.modules.all())
+
+        if enrolled_modules:
+            session_qs = session_qs.filter(module__in=enrolled_modules)
+        else:
+            session_qs = session_qs.filter(module__isnull=True)
+
+        eligible_session_ids.update(session_qs.values_list('id', flat=True))
+
+    sessions_qs = ClassSession.objects.filter(id__in=eligible_session_ids).only('id', 'day_of_week', 'end_time')
     existing_session_ids = set(student_profile.attendance_records.values_list('session_id', flat=True))
 
     missed_records = []
@@ -120,11 +133,7 @@ def _backfill_session_absences(session, now_local):
         **base_filters,
         enrollments__lecturer=session.lecturer,
     ).distinct()
-    fallback_students = Student.objects.filter(
-        **base_filters,
-        enrollments__lecturer__isnull=True,
-    ).distinct()
-    enrolled_students = lecturer_students | fallback_students
+    enrolled_students = lecturer_students
 
     existing_student_ids = set(
         Attendance.objects.filter(session=session).values_list('student_id', flat=True)
@@ -660,7 +669,7 @@ def send_announcement(request):
                 try:
                     module = lecturer_modules.get(module_code=selected_module_code)
 
-                    students_to_email = Student.objects.filter(enrollments__modules=module, enrollments__lecturer=lecturer_profile).distinct()
+                    students_to_email = Student.objects.filter(enrollments__modules=module).distinct()
 
                     for student in students_to_email:
                         if student.user and student.user.email:
@@ -671,7 +680,7 @@ def send_announcement(request):
             else:
                 # Send to all students across all courses taught by the lecturer
 
-                students_to_email = Student.objects.filter(enrollments__modules__in=lecturer_modules, enrollments__lecturer=lecturer_profile).distinct()
+                students_to_email = Student.objects.filter(enrollments__modules__in=lecturer_modules).distinct()
 
                 for student in students_to_email:
                     if student.user and student.user.email:

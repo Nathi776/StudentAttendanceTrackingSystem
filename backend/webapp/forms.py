@@ -283,6 +283,8 @@ class ClassSessionForm(forms.ModelForm):
         self.lecturer_profile = kwargs.pop('lecturer_profile', None)
         super().__init__(*args, **kwargs)
 
+        self.fields['course'].label_from_instance = lambda obj: f"{obj.course_code} - {obj.course_name}"
+
  
         if self.lecturer_profile:
             # Courses are now associated via Modules, and Lecturers are assigned to Modules.
@@ -291,6 +293,7 @@ class ClassSessionForm(forms.ModelForm):
             self.fields['course'].queryset = Course.objects.filter(
                 modules__in=lecturer_modules
             ).distinct()
+            self.fields['course'].label_from_instance = lambda obj: f"{obj.course_code} - {obj.course_name}"
 
             # Show only the lecturer's modules in the module dropdown.
             if 'module' in self.fields:
