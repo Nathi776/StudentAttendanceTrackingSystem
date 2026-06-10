@@ -475,12 +475,11 @@ def lecturer_dashboard(request):
         })
  
     enrolled_students_qs = Student.objects.filter(
-        enrollments__course__in=courses_taught_qs,
-        enrollments__lecturer=lecturer_profile,
+        enrollments__course__in=courses_taught_qs
     ).distinct().select_related('user').prefetch_related(
         Prefetch(
             'enrollments',
-            queryset=Enrollment.objects.filter(course__in=courses_taught_qs, lecturer=lecturer_profile).select_related('course', 'lecturer__user'),
+            queryset=Enrollment.objects.filter(course__in=courses_taught_qs).select_related('course', 'lecturer__user'),
             to_attr='lecturer_related_enrollments'
         )
     ).order_by('user__last_name', 'user__first_name')
