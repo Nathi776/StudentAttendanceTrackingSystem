@@ -180,6 +180,7 @@ class EnrollmentForm(forms.ModelForm):
         labels = {
             'student': 'Student',
             'course': 'Course',
+            'lecturer': 'Lecturer',
             'modules': 'Modules',
             'enrollment_date': 'Enrollment Date',
         }
@@ -204,15 +205,33 @@ class EnrollmentForm(forms.ModelForm):
         # Order courses for easier selection
         self.fields['course'].queryset = Course.objects.all().order_by('course_code')
 
+        # Allow choosing which lecturer this enrollment belongs to.
+        self.fields['lecturer'].queryset = Lecturer.objects.select_related('user').order_by('user__username')
+        self.fields['lecturer'].required = True
+        self.fields['lecturer'].label_from_instance = lambda obj: f"{obj.user.username} - {obj.user.get_full_name()}"
+
         # Make modules required and use admin-friendly multi-select widget
         self.fields['modules'].required = True
         self.fields['modules'].widget = FilteredSelectMultiple('Modules', is_stacked=False)
         # Ensure modules queryset is available so JS can populate it correctly
         self.fields['modules'].queryset = Module.objects.all().order_by('module_code')
 
+        # Restrict lecturers to those who teach the selected course's modules when possible.
+        course = None
+        course_id = self.data.get('course') if self.is_bound else self.initial.get('course')
+        if course_id:
+            course = Course.objects.filter(pk=course_id).prefetch_related('modules__lecturers__user').first()
+        elif self.instance and self.instance.pk:
+            course = self.instance.course
+
+        if course:
+            eligible_lecturers = Lecturer.objects.filter(modules__in=course.modules.all()).distinct().select_related('user').order_by('user__username')
+            self.fields['lecturer'].queryset = eligible_lecturers
+
     def clean(self):
         cleaned_data = super().clean()
         course = cleaned_data.get('course')
+        lecturer = cleaned_data.get('lecturer')
         modules = cleaned_data.get('modules')
 
         if course and modules:
@@ -230,6 +249,11 @@ class EnrollmentForm(forms.ModelForm):
                 raise forms.ValidationError(
                     "Please select at least one module for this enrollment."
                 )
+
+        if course and lecturer:
+            eligible_lecturers = Lecturer.objects.filter(modules__in=course.modules.all()).distinct()
+            if lecturer not in eligible_lecturers:
+                raise forms.ValidationError("Selected lecturer does not teach this course's module(s).")
 
         return cleaned_data
 

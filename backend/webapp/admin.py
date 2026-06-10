@@ -139,9 +139,9 @@ class CourseAdmin(admin.ModelAdmin):
 
 class EnrollmentAdmin(admin.ModelAdmin):
     form = EnrollmentForm
-    list_display = ('student', 'course', 'module_list', 'enrollment_date')
-    list_filter = ('modules', 'enrollment_date')
-    search_fields = ('student__user__username', 'course__course_code', 'modules__module_code')
+    list_display = ('student', 'course', 'lecturer', 'module_list', 'enrollment_date')
+    list_filter = ('lecturer', 'modules', 'enrollment_date')
+    search_fields = ('student__user__username', 'course__course_code', 'lecturer__user__username', 'modules__module_code')
     filter_horizontal = ('modules',)
 
     def module_list(self, obj):

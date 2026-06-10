@@ -212,7 +212,7 @@ def enrollment_report(request):
     end_date = parse_date(end_date_str) if end_date_str else None
     
     # Base queryset
-    enrollment_qs = Enrollment.objects.select_related('student__user', 'course')
+    enrollment_qs = Enrollment.objects.select_related('student__user', 'course', 'lecturer__user')
     
     # Apply filters
     if course_code:
@@ -235,6 +235,8 @@ def enrollment_report(request):
             'email': enrollment.student.user.email,
             'course_code': enrollment.course.course_code,
             'course_name': enrollment.course.course_name,
+            'lecturer_name': enrollment.lecturer.user.get_full_name() if enrollment.lecturer else 'N/A',
+            'lecturer_username': enrollment.lecturer.user.username if enrollment.lecturer else 'N/A',
             'modules': modules,
             'enrollment_date': enrollment.enrollment_date.isoformat(),
         })

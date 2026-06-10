@@ -164,6 +164,14 @@ class Enrollment(models.Model):
         related_name='enrollments',
         help_text="The course being enrolled in."
     )
+    lecturer = models.ForeignKey(
+        Lecturer,
+        on_delete=models.SET_NULL,
+        related_name='enrollments',
+        blank=True,
+        null=True,
+        help_text="The lecturer this student is enrolled under for the course."
+    )
     modules = models.ManyToManyField(
         Module,
         blank=True,
@@ -173,7 +181,7 @@ class Enrollment(models.Model):
     enrollment_date = models.DateField(auto_now_add=True, help_text="Date of enrollment.")
 
     class Meta:
-        unique_together = ('student', 'course')
+        unique_together = ('student', 'course', 'lecturer')
         verbose_name = _('enrollment')
         verbose_name_plural = _('enrollments')
         ordering = ['-enrollment_date']
@@ -181,7 +189,8 @@ class Enrollment(models.Model):
     def __str__(self):
         module_codes = ", ".join([m.module_code for m in self.modules.all()]) if self.modules.exists() else ""
         module_part = f" ({module_codes})" if module_codes else ""
-        return f"{self.student.user.get_full_name()} enrolled in {self.course.course_name}{module_part}"
+        lecturer_part = f" under {self.lecturer.user.get_full_name()}" if self.lecturer else ""
+        return f"{self.student.user.get_full_name()} enrolled in {self.course.course_name}{module_part}{lecturer_part}"
 
 
 # --- 6. ClassSession Model ---
@@ -320,6 +329,11 @@ def sync_student_enrollments_with_modules(sender, instance, action, reverse, mod
         shared_modules = list(enrollment.course.modules.filter(pk__in=[m.pk for m in student_modules]))
         if shared_modules:
             enrollment.modules.set(shared_modules)
+            if enrollment.lecturer_id is None:
+                lecturer_candidates = Lecturer.objects.filter(modules__in=shared_modules).distinct()
+                if lecturer_candidates.count() == 1:
+                    enrollment.lecturer = lecturer_candidates.first()
+                    enrollment.save(update_fields=['lecturer'])
         else:
             # Student no longer wants any module for this course
             enrollment.delete()
@@ -331,6 +345,8 @@ def sync_student_enrollments_with_modules(sender, instance, action, reverse, mod
     for course in desired_courses:
         if course.course_code not in existing_course_codes:
             modules_to_assign = list(course.modules.filter(pk__in=[m.pk for m in student_modules]))
-            enrollment = Enrollment.objects.create(student=instance, course=course)
+            lecturer_candidates = Lecturer.objects.filter(modules__in=modules_to_assign).distinct()
+            lecturer = lecturer_candidates.first() if lecturer_candidates.count() == 1 else None
+            enrollment = Enrollment.objects.create(student=instance, course=course, lecturer=lecturer)
             if modules_to_assign:
                 enrollment.modules.set(modules_to_assign)

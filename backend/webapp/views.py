@@ -110,15 +110,21 @@ def _backfill_session_absences(session, now_local):
     if not _session_has_passed(session, now_local):
         return
 
+    base_filters = {
+        'enrollments__course': session.course,
+    }
     if session.module:
-        enrolled_students = Student.objects.filter(
-            enrollments__course=session.course,
-            enrollments__modules=session.module,
-        ).distinct()
-    else:
-        enrolled_students = Student.objects.filter(
-            enrollments__course=session.course,
-        ).distinct()
+        base_filters['enrollments__modules'] = session.module
+
+    lecturer_students = Student.objects.filter(
+        **base_filters,
+        enrollments__lecturer=session.lecturer,
+    ).distinct()
+    fallback_students = Student.objects.filter(
+        **base_filters,
+        enrollments__lecturer__isnull=True,
+    ).distinct()
+    enrolled_students = lecturer_students | fallback_students
 
     existing_student_ids = set(
         Attendance.objects.filter(session=session).values_list('student_id', flat=True)
@@ -469,11 +475,12 @@ def lecturer_dashboard(request):
         })
  
     enrolled_students_qs = Student.objects.filter(
-        enrollments__course__in=courses_taught_qs
+        enrollments__course__in=courses_taught_qs,
+        enrollments__lecturer=lecturer_profile,
     ).distinct().select_related('user').prefetch_related(
         Prefetch(
             'enrollments',
-            queryset=Enrollment.objects.filter(course__in=courses_taught_qs).select_related('course'),
+            queryset=Enrollment.objects.filter(course__in=courses_taught_qs, lecturer=lecturer_profile).select_related('course', 'lecturer__user'),
             to_attr='lecturer_related_enrollments'
         )
     ).order_by('user__last_name', 'user__first_name')
@@ -654,7 +661,7 @@ def send_announcement(request):
                 try:
                     module = lecturer_modules.get(module_code=selected_module_code)
 
-                    students_to_email = Student.objects.filter(enrollments__modules=module).distinct()
+                    students_to_email = Student.objects.filter(enrollments__modules=module, enrollments__lecturer=lecturer_profile).distinct()
 
                     for student in students_to_email:
                         if student.user and student.user.email:
@@ -665,7 +672,7 @@ def send_announcement(request):
             else:
                 # Send to all students across all courses taught by the lecturer
 
-                students_to_email = Student.objects.filter(enrollments__modules__in=lecturer_modules).distinct()
+                students_to_email = Student.objects.filter(enrollments__modules__in=lecturer_modules, enrollments__lecturer=lecturer_profile).distinct()
 
                 for student in students_to_email:
                     if student.user and student.user.email:
@@ -1607,12 +1614,13 @@ def enroll_student(request, student_id):
             enrollment = form.save(commit=False)
             enrollment.student = student
             # Check if enrollment already exists to prevent duplicates
-            if not Enrollment.objects.filter(student=student, course=enrollment.course).exists():
+            if not Enrollment.objects.filter(student=student, course=enrollment.course, lecturer=enrollment.lecturer).exists():
                 enrollment.save()
+                form.save_m2m()
                 messages.success(request, f"Student {student.user.username} enrolled in {enrollment.course.course_name} successfully!")
                 return redirect('student_dashboard')  
-                form.add_error(None, "Student is already enrolled in this course.")
-                messages.warning(request, "Student is already enrolled in this course.")
+            form.add_error(None, "Student is already enrolled under this lecturer for this course.")
+            messages.warning(request, "Student is already enrolled under this lecturer for this course.")
     else:
         form = EnrollmentForm(initial={'student': student_id})  
 
@@ -1809,13 +1817,24 @@ def mark_attendance_api(request):
             enrollment_exists = Enrollment.objects.filter(
                 student=student,
                 course=session.course,
-                modules=session.module
+                modules=session.module,
+                lecturer=session.lecturer,
+            ).exists() or Enrollment.objects.filter(
+                student=student,
+                course=session.course,
+                modules=session.module,
+                lecturer__isnull=True,
             ).exists()
         else:
             # If no module specified, just check course enrollment
             enrollment_exists = Enrollment.objects.filter(
                 student=student,
-                course=session.course
+                course=session.course,
+                lecturer=session.lecturer,
+            ).exists() or Enrollment.objects.filter(
+                student=student,
+                course=session.course,
+                lecturer__isnull=True,
             ).exists()
         
         if not enrollment_exists:

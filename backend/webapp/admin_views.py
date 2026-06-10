@@ -542,7 +542,7 @@ class AdminCourseDeleteView(AdminModelDeleteView):
 
 class AdminEnrollmentListView(AdminModelListView):
     model = Enrollment
-    search_fields = ['student__user__username', 'course__course_code']
+    search_fields = ['student__user__username', 'course__course_code', 'lecturer__user__username', 'lecturer__user__first_name', 'lecturer__user__last_name']
     add_url_name = 'admin_enrollment_add'
     change_url_name = 'admin_enrollment_edit'
     delete_url_name = 'admin_enrollment_delete'
