@@ -260,8 +260,12 @@ INTENTS: tuple[IntentDefinition, ...] = (
             'show students with the highest absences',
             'who misses the most classes',
             'list the most absent students',
+            'absent days',
+            'top absent students',
+            'who was absent the most',
         ),
-        keywords=('absent', 'absence', 'most', 'highest', 'misses'),
+        keywords=('absent', 'absence', 'most', 'highest', 'misses', 'days', 'top'),
+        priority=29,
     ),
     IntentDefinition(
         name='students_qualify_exam',
@@ -310,7 +314,7 @@ INTENTS: tuple[IntentDefinition, ...] = (
             'students absent today',
         ),
         keywords=('absent', 'today', 'students', 'count'),
-        priority=27,
+        priority=20,
     ),
     IntentDefinition(
         name='attendance_statistics_for_module',
@@ -447,6 +451,10 @@ def _intent_specific_bonus(intent: IntentDefinition, normalized_message: str, ro
             bonus += 0.08
     if intent.name == 'exam_qualification_count' and 'qualify' in normalized_message:
         bonus += 0.05
+    if intent.name == 'absent_today_count' and 'today' not in normalized_message:
+        bonus -= 0.25
+    if intent.name == 'todays_attendance_summary' and 'today' not in normalized_message:
+        bonus -= 0.2
     return bonus
 
 

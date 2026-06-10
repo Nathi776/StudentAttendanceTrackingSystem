@@ -1029,6 +1029,7 @@ def _parse_attendance_date(message):
 
 
 def _lecturer_most_absent_students(lecturer_profile, limit=10):
+    limit = 5
     absent_rows = (
         Attendance.objects.filter(session__lecturer=lecturer_profile, status='Absent')
         .values('student__user__first_name', 'student__user__last_name', 'student__user__username')
@@ -1047,7 +1048,7 @@ def _lecturer_most_absent_students(lecturer_profile, limit=10):
         full_name = f'{first_name} {last_name}'.strip() or username or 'Unknown student'
         lines.append(f'{full_name} - absent {row["absent_count"]} times')
 
-    return 'Students with the most absent records:\n' + '\n'.join(lines)
+    return 'Top 5 students with the most absent records:\n' + '\n'.join(lines)
 
 
 def _student_presence_on_date(student_profile, target_date):
